@@ -4,7 +4,7 @@ Seven TV Client.
 License
 -------
 * This Source Code Form is subject to the terms of the [Mozilla Public License v2.0](<http://mozilla.org/MPL/2.0/>).
-* Copyright (C) 2020-present [Aluerie](<https://github.com/Aluerie>).
+* Copyright (C) 2020-present [@Aluerie](<https://github.com/Aluerie>).
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 import orjson
 from aiohttp import ClientSession
 
-from . import const, errors
+from . import errors
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -38,11 +38,18 @@ BAD_REQUEST_CONFLICTING_NAME_MESSAGE = "BAD_REQUEST this emote has a conflicting
 BAD_REQUEST_EMOTE_NOT_FOUND_MESSAGE = "BAD_REQUEST emote not found in set"
 
 
-class EmoteNotFoundInSetError(errors.IreBotError):
+class SevenTVError(errors.CustomError):
+    """Error Class for Seven TV Errors.
+
+    I mean this class to be used for those errors that comes from 7TV API directly, i.e. in `message` field.
+    """
+
+
+class EmoteNotFoundInSetError(SevenTVError):
     """Emote Not Found In Set Error."""
 
 
-class ConflictingEmoteNameError(errors.IreBotError):
+class ConflictingEmoteNameError(SevenTVError):
     """Conflicting Emote Name Error."""
 
 
@@ -63,14 +70,26 @@ class SevenTVClient:
         7TV GraphQL playground.
     * https://github.com/SevenTV/SevenTV/issues/216
         Remember to search in their issues for some examples of GraphQL requests/responses.
+
+    Parameters
+    ----------
+    token: str
+        Bearer Token for Seven TV API usage.
+    session: ClientSession | None = None
+        If provided, then the wrapper will use it as its session calls.
+        Otherwise, it will create a new `ClientSession` on every API call.
     """
 
-    def __init__(self, session: ClientSession | None = None) -> None:
+    def __init__(
+        self,
+        token: str,
+        *,
+        session: ClientSession | None = None,
+    ) -> None:
+        self.token: str = token
         self.session: ClientSession | None = session
 
-    async def invoke(
-        self, query: str, *, variables: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    async def invoke(self, query: str, *, variables: Mapping[str, Any]) -> dict[str, Any]:
         """Invoke a request to 7TV GraphQL API.
 
         Parameters
@@ -98,7 +117,7 @@ class SevenTVClient:
                 "variables": variables,
             },
             headers={
-                "Authorization": env.SEVEN_TV_BEARER,
+                "Authorization": self.token,
             },
         ) as response:
             graph_ql_json = await response.json(loads=orjson.loads)
@@ -116,9 +135,7 @@ class SevenTVClient:
                 if message == BAD_REQUEST_EMOTE_NOT_FOUND_MESSAGE:
                     raise EmoteNotFoundInSetError(error_msg)
 
-            raise errors.APIDataError(
-                str(graph_ql_json["errors"]), graph_ql_json["errors"]
-            )
+            raise errors.APIDataError(str(graph_ql_json["errors"]), graph_ql_json["errors"])
 
         # NO ERRORS
         return graph_ql_json
@@ -153,9 +170,7 @@ class SevenTVClient:
         )
         return res["data"]["emotes"]["emote"]["defaultName"]
 
-    async def emote_set_add_emote(
-        self, *, emote_set_id: str, emote_id: str, emote_alias: str | None = None
-    ) -> str:
+    async def emote_set_add_emote(self, *, emote_set_id: str, emote_id: str, emote_alias: str | None = None) -> str:
         """
         Add an emote to a 7TV emote set.
 
@@ -335,11 +350,9 @@ class SevenTVClient:
                 "platformId": broadcaster_id,
             },
         )
-        candidates = res["data"]["users"]["userByConnection"]["style"][
-            "activeEmoteSet"
-        ]["emotes"]["items"]
+        candidates = res["data"]["users"]["userByConnection"]["style"]["activeEmoteSet"]["emotes"]["items"]
         candidate = next(c for c in candidates if c["alias"] == emote_name)
         if candidate is None:
-            msg = f"It seems there is no emote named like that {const.FFZ.peepoPolice}"
-            raise errors.BadUserInputError(msg)
+            msg = "It seems there is no emote named like that"
+            raise errors.UnsatisfyingResultError(msg)
         return candidate["id"]
