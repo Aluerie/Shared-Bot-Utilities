@@ -351,8 +351,8 @@ class SevenTVClient:
             },
         )
         candidates = res["data"]["users"]["userByConnection"]["style"]["activeEmoteSet"]["emotes"]["items"]
-        candidate = next(c for c in candidates if c["alias"] == emote_name)
+        candidate = next((c for c in candidates if c["alias"] == emote_name), None)
         if candidate is None:
-            msg = "It seems there is no emote named like that"
+            msg = f"Could not find an emote named {emote_name} in the first 20 results of 7TV query."
             raise errors.UnsatisfyingResultError(msg)
         return candidate["id"]

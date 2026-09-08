@@ -50,5 +50,5 @@ class UnsatisfyingResultError(CustomError):
     """Error indicating that the result of operation was unsatisfying.
 
     Useful for API calls where the response was correct, but, for example,
-    the bot could not find a result matching some desired conditions.
+    some conditions were not met.
     """
