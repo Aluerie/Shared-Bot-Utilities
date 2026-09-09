@@ -9,4 +9,4 @@ License
 * Copyright (C) 2020-present [@Aluerie](<https://github.com/Aluerie>).
 """
 
-from . import errors as errors, seven_tv as seven_tv
+from . import dota2 as dota2, errors as errors, seven_tv as seven_tv
