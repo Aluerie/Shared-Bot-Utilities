@@ -6,25 +6,22 @@ from typing import TYPE_CHECKING, Any, NamedTuple, override
 from steam import PersonaState
 from steam.ext import dota2
 
-from config import env
-from core import ireloop
-
 from .. import errors
 from .api_clients import OpenDotaClient, SteamWebAPIClient, StratzClient
 
 if TYPE_CHECKING:
-    from core import IreBot
+    from aiohttp import ClientSession
+
+    from ..types_ import database
+
+    class ItemToUpsert(NamedTuple):
+        item_id: int
+        display_name: str
+
 
 log = logging.getLogger(__name__)
 
-__all__ = ("Dota2Client", "SteamUserUpdate")
-
-
-class SteamUserUpdate(NamedTuple):
-    """Payload for my custom `steam_user_update` event to mirror `Dota2Client.on_user_update`."""
-
-    before: dota2.User
-    after: dota2.User
+__all__ = ("Dota2Client",)
 
 
 class Dota2Client(dota2.Client):
@@ -33,34 +30,42 @@ class Dota2Client(dota2.Client):
     Used to communicate with Dota 2 Game Coordinator in order to track information about my profile real-time.
     """
 
-    def __init__(self, twitch_bot: IreBot) -> None:
-        persona_state = PersonaState.Online  # if not twitch_bot.test else PersonaState.Invisible
-        super().__init__(state=persona_state)
-        self.bot: IreBot = twitch_bot
+    def __init__(
+        self,
+        *,
+        session: ClientSession,
+        pool: database.PoolTypedWithAny,
+        steam_username: str,
+        steam_password: str,
+        steam_web_api: str,
+        stratz_bearer: str,
+    ) -> None:
+        super().__init__(state=PersonaState.Online)
+        self.pool: database.PoolTypedWithAny = pool
         self.started: bool = False
+        self.steam_username: str = steam_username
+        self.steam_password: str = steam_password
 
-        self.opendota = OpenDotaClient(session=self.bot.session)
-        self.stratz = StratzClient(bearer_token=env.STRATZ_BEARER, session=self.bot.session)
-        self.web_api = SteamWebAPIClient(api_key=env.STEAM_API_KEY, session=self.bot.session)
+        self.opendota = OpenDotaClient(session=session)
+        self.stratz = StratzClient(bearer_token=stratz_bearer, session=session)
+        self.web_api = SteamWebAPIClient(api_key=steam_web_api, session=session)
 
-    async def start_helpers(self) -> None:
+    async def before_login(self) -> None:
+        """Before Login.
+
+        This method is supposed to be overwritten by subclasses.
+        """
+
+    async def _before_login(self) -> None:
         """Start helping services for steam."""
         if not self.started:
-            self.refresh_database_dota_constants.start()
+            await self.before_login()
             self.started = True
 
     @override
     async def login(self, *args: Any, **kwargs: Any) -> None:
-        await self.start_helpers()
-        if self.bot.test_subset_mode:
-            username, password = env.STEAM_IRENESTEST_USERNAME, env.STEAM_IRENESTEST_PASSWORD
-        else:
-            username, password = env.STEAM_IRENESBOT_USERNAME, env.STEAM_IRENESBOT_PASSWORD
-        await super().login(username, password, *args, **kwargs)
-
-    @override
-    async def close(self) -> None:
-        self.refresh_database_dota_constants.stop()
+        await self._before_login()
+        await super().login(self.steam_username, self.steam_password, *args, **kwargs)
 
     @override
     async def on_ready(self) -> None:
@@ -68,19 +73,9 @@ class Dota2Client(dota2.Client):
         await self.wait_until_gc_ready()
         log.info("🍋 Dota 2 Game Coordinator: Ready")
 
-    @override
-    async def on_user_update(self, before: dota2.User, after: dota2.User) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
-        """Called when a steam user is updated, due to one or more of their attributes changing.
-
-        The information from this event is redirected to `self.bot` events
-        so we can process it in the bot components' listeners.
-        """
-        payload = SteamUserUpdate(before=before, after=after)
-        self.bot.dispatch("steam_user_update", payload)
-
     # DATABASE DOTA CONSTANTS
 
-    async def upsert_constants_items(self, to_insert: list[tuple[int, str]], service_name: str) -> None:
+    async def upsert_constants_items(self, to_insert: list[ItemToUpsert], service_name: str) -> None:
         """Upsert data into `dota_constants_items` table."""
         query = """
             INSERT INTO dota_constants_items
@@ -89,11 +84,10 @@ class Dota2Client(dota2.Client):
             ON CONFLICT (item_id)
                 DO UPDATE SET display_name = $2;
         """
-        await self.bot.pool.executemany(query, to_insert)
+        await self.pool.executemany(query, to_insert)
         log.debug("🍋 Database Dota Constants: Updated items with %s API", service_name)
 
-    @ireloop(count=1)  # , time=datetime.time(hour=6, minute=44))
-    async def refresh_database_dota_constants(self) -> None:
+    async def refresh_dota_constants_items(self) -> None:
         """Daily Refresh Database's Dota Constants.
 
         Notes
@@ -101,7 +95,7 @@ class Dota2Client(dota2.Client):
         * IreBot currently only utilizes `dota_constants_items` table.
         * This task first tries to update stuff with Stratz API, if not successful then fallback to OpenDota.
         """
-        log.debug("🍋 Database Dota Constants: Daily Refresh is starting")
+        log.debug("🍋 Database Dota Constants: Refreshing `dota_constants_items`")
 
         # Stratz
         try:
@@ -111,9 +105,15 @@ class Dota2Client(dota2.Client):
             # Then we should try with OpenDota
         else:
             await self.upsert_constants_items(
-                # Sometimes Stratz return `None` for item display names (hence `or ""`).
-                # Also they put '\x00' into their responses which is not supported by PostgresQL
-                to_insert=[(item["id"], (item["displayName"] or "").replace("\x00", "")) for item in items],
+                to_insert=[
+                    ItemToUpsert(
+                        item_id=item["id"],
+                        # Sometimes Stratz return `None` for item display names (hence `or ""`).
+                        # Also they put '\x00' into their responses which is not supported by PostgresQL
+                        display_name=(item["displayName"] or "").replace("\x00", ""),
+                    )
+                    for item in items
+                ],
                 service_name="Stratz",
             )
             return
@@ -126,8 +126,14 @@ class Dota2Client(dota2.Client):
             # Then we are cooked ?
         else:
             await self.upsert_constants_items(
-                # Some Opendota items are missing `dname` field.
-                to_insert=[(item["id"], item.get("dname", "")) for _key, item in items.items()],
+                to_insert=[
+                    ItemToUpsert(
+                        item_id=item["id"],
+                        # Some Opendota items are missing `dname` field.
+                        display_name=item.get("dname", ""),
+                    )
+                    for _key, item in items.items()
+                ],
                 service_name="Opendota",
             )
             return
