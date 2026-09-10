@@ -10,7 +10,7 @@ Sources
 Notes
 -----
 * Unfortunately, Danny didn't make doc-strings for the functions in here so I mostly cross-checked with
-    https://github.com/seatgeek/thefuzz concepts and ideas, which are kinda the same
+    https://github.com/seatgeek/thefuzz concepts and ideas, which are somewhat the same
     (but in my testing that library is slower than the code here, not sure why).
 """
 
