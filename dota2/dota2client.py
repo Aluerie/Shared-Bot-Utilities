@@ -14,14 +14,15 @@ if TYPE_CHECKING:
 
     from ..types_ import database
 
-    class ItemToUpsert(NamedTuple):
-        item_id: int
-        display_name: str
-
 
 log = logging.getLogger(__name__)
 
 __all__ = ("Dota2Client",)
+
+
+class ItemToUpsert(NamedTuple):
+    item_id: int
+    display_name: str
 
 
 class Dota2Client(dota2.Client):
