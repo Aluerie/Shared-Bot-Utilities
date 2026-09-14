@@ -1,5 +1,5 @@
 """
-Formatting Utilities and functions.
+Formatting utilities.
 
 License
 -------
