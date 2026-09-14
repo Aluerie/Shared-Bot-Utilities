@@ -47,7 +47,8 @@ CODE_LANGUAGES = [
     "taggerscript", "yaml", "tap", "tcl", "thrift", "tp", "twig", "typescript", "vala", "vbnet", "vbscript",
     "vbscript-html", "verilog", "vhdl", "vim", "wasm", "wren", "x86asm", "xl", "xquery", "zephir",
 ]
-# fmt: on # cSpell:enable
+# fmt: on
+# # cSpell:enable
 
 
 def codeblock(text: str, language: str = "py") -> str:
@@ -103,7 +104,7 @@ class plural:  # noqa: N801
     def __format__(self, format_spec: str) -> str:
         number = self.number
 
-        skip_number = format_spec.endswith('!')
+        skip_number = format_spec.endswith("!")
         if skip_number:
             format_spec = format_spec[:-1]
 
@@ -163,6 +164,7 @@ def timedelta_to_words(
     """
     if timedelta is not MISSING and seconds is not MISSING:
         msg = "Cannot mix `delta` and `seconds` keyword arguments."
+        # TODO: probably add dt, source argument too
         raise TypeError(msg)
 
     if timedelta:
@@ -177,16 +179,22 @@ def timedelta_to_words(
     hours, minutes = divmod(minutes, 60)
     days, hours = divmod(hours, 24)
 
+    def get_time_units(*names: str) -> dict[str, int]:
+        return dict(zip(names, (days, hours, minutes, seconds), strict=True))
+
     match fmt:
-        case TimeDeltaFormat.Full:  # 1 minute 6 seconds
-            time_units = {"day": days, "hour": hours, "minute": minutes, "second": seconds}
+        case TimeDeltaFormat.Full:
+            # 1 minute 6 seconds
+            time_units = get_time_units("day", "hour", "minute", "second")
             output = [format(plural(number), word) for word, number in time_units.items() if number]
             return " ".join(output[:accuracy])
-        case TimeDeltaFormat.Short:  # 1 min 30 sec
-            time_units = {"day(-s)": days, "hr": hours, "min": minutes, "sec": seconds}
+        case TimeDeltaFormat.Short:
+            # 1 min 30 sec
+            time_units = get_time_units("day(-s)", "hr", "min", "sec")
             output = [f"{number} {short}" for short, number in time_units.items() if number]
             return " ".join(output[:accuracy])
-        case TimeDeltaFormat.Letter:  # 1m30s
-            time_units = {"d": days, "h": hours, "m": minutes, "s": seconds}
+        case TimeDeltaFormat.Letter:
+            # 1m30s
+            time_units = get_time_units("d", "h", "m", "s")
             output = [f"{number:02d}{letter}" for letter, number in time_units.items() if number]
             return "".join(output[:accuracy]).removeprefix("0")  # remove leading zero if it managed to sneak in
