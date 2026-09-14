@@ -12,7 +12,7 @@ from .. import errors
 if TYPE_CHECKING:
     import aiohttp
 
-    from . import api_schemas
+    from .types_ import api_schemas as schemas
 
     class GraphQLData(TypedDict):
         data: Any
@@ -44,11 +44,11 @@ class OpenDotaClient(APIClient):
         async with self.session.get(url=url) as resp:
             return await resp.json(loads=orjson.loads)
 
-    async def matches(self, match_id: int) -> api_schemas.OpendotaMatches:
+    async def matches(self, match_id: int) -> schemas.OpendotaMatches:
         """Get match from opendota API via GET matches endpoint."""
         return await self.invoke(f"matches/{match_id}")
 
-    async def get_items(self) -> api_schemas.OpendotaItemsQuery:
+    async def get_items(self) -> schemas.OpendotaItemsQuery:
         """Get Opendota constants items.
 
         Links
@@ -86,7 +86,7 @@ class StratzClient(APIClient):
                 msg = "Stratz GraphQL API Error:"
                 raise errors.APIDataError(msg, graphql_json) from None
 
-    async def get_items(self) -> list[api_schemas.StratzItem]:
+    async def get_items(self) -> list[schemas.StratzItem]:
         """Get Constants for Dota 2 Items."""
         log.debug("🍋 Stratz GraphQL API: getting items.")
         query = """
@@ -99,7 +99,7 @@ class StratzClient(APIClient):
             }
         }
         """
-        data: api_schemas.StratzItemData = await self.invoke(query)
+        data: schemas.StratzItemData = await self.invoke(query)
         return data["constants"]["items"]
 
 
@@ -143,7 +143,7 @@ class SteamWebAPIClient(APIClient):
 
         return result
 
-    async def get_real_time_stats(self, server_steam_id: int) -> api_schemas.SteamWebRealTimeStats:
+    async def get_real_time_stats(self, server_steam_id: int) -> schemas.SteamWebRealTimeStats:
         """Get Real Time Stats from Steam Web API.
 
         Links
