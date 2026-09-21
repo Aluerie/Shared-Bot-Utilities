@@ -44,7 +44,7 @@ def setup_logging(
             maxBytes=7 * 1024 * 1024,  # MiB
             backupCount=2,  # Rotate through 2 files
         )
-        file_handler.setFormatter(get_log_fmt(handler))
+        file_handler.setFormatter(get_log_fmt(file_handler))
         log.addHandler(file_handler)
 
         if platform.system() == "Linux":
@@ -88,8 +88,8 @@ class MyColourFormatter(logging.Formatter):
     FORMATS: ClassVar[dict[int, logging.Formatter]] = {
         level: logging.Formatter(
             (
-                f"\x1b[37;1m%(asctime)s\x1b[0m {color}%(levelname)-8.8s\x1b[0m "
-                "\x1b[35m%(name)-30s\x1b[0m \x1b[92m%(lineno)-4d\x1b[0m \x1b[36m%(funcName)-35s\x1b[0m %(message)s"
+                f"\x1b[37;1m%(asctime)s\x1b[0m {color}%(levelname)-8.8s\x1b[0m \x1b[35m%(name)-30s\x1b[0m "
+                "\x1b[92m%(lineno)-4d\x1b[0m \x1b[36m%(funcName)-35s\x1b[0m %(message)s"
             ),
             "%H:%M:%S %d/%m",
         )
