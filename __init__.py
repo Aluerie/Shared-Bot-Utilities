@@ -5,14 +5,15 @@ This package contains a bunch of utilities, helpers, small API wrappers that I u
 
 License
 -------
-* This Source Code Form is subject to the terms of the [Mozilla Public License v2.0](<http://mozilla.org/MPL/2.0/>).
-* Copyright (C) 2020-present [@Aluerie](<https://github.com/Aluerie>).
+* License: MPL-2.0, see LICENSE for more details.
+* Copyright: (C) 2020-present @Aluerie.
 """
 
 from . import (
     common_const as common_const,
     concepts as concepts,
     dota2 as dota2,
+    dt as dt,
     errors as errors,
     fmt as fmt,
     fuzzy as fuzzy,

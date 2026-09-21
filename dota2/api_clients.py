@@ -1,3 +1,12 @@
+"""
+Dota 2 API Clients.
+
+License
+-------
+* License: MPL-2.0, see LICENSE for more details.
+* Copyright: (C) 2020-present @Aluerie.
+"""
+
 from __future__ import annotations
 
 import abc
@@ -31,14 +40,14 @@ class APIClient(abc.ABC):
         self.session: aiohttp.ClientSession = session
 
     @abc.abstractmethod
-    async def invoke(self, *args: Any, **kwargs: Any) -> Any: ...
+    async def _invoke(self, *args: Any, **kwargs: Any) -> Any: ...
 
 
 class OpenDotaClient(APIClient):
     """A class for interacting with OpenDota API."""
 
     @override
-    async def invoke(self, endpoint: str) -> Any:
+    async def _invoke(self, endpoint: str) -> Any:
         """Invoke a request to OpenDota API."""
         url = f"https://api.opendota.com/api/{endpoint}"
         async with self.session.get(url=url) as resp:
@@ -46,7 +55,7 @@ class OpenDotaClient(APIClient):
 
     async def matches(self, match_id: int) -> schemas.OpendotaMatches:
         """Get match from opendota API via GET matches endpoint."""
-        return await self.invoke(f"matches/{match_id}")
+        return await self._invoke(f"matches/{match_id}")
 
     async def get_items(self) -> schemas.OpendotaItemsQuery:
         """Get Opendota constants items.
@@ -57,7 +66,7 @@ class OpenDotaClient(APIClient):
         * https://raw.githubusercontent.com/odota/dotaconstants/master/build/items.json
         """
         log.debug("🍋 Opendota Constants API: getting items.")
-        return await self.invoke("constants/items")
+        return await self._invoke("constants/items")
 
 
 class StratzClient(APIClient):
@@ -68,7 +77,7 @@ class StratzClient(APIClient):
         self.bearer_token: str = bearer_token
 
     @override
-    async def invoke(self, query: str) -> Any:
+    async def _invoke(self, query: str) -> Any:
         """Invoke a request to Stratz GraphQL API."""
         async with self.session.post(
             url="https://api.stratz.com/graphql",
@@ -99,7 +108,7 @@ class StratzClient(APIClient):
             }
         }
         """
-        data: schemas.StratzItemData = await self.invoke(query)
+        data: schemas.StratzItemData = await self._invoke(query)
         return data["constants"]["items"]
 
 
@@ -117,7 +126,7 @@ class SteamWebAPIClient(APIClient):
         self.api_key: str = api_key
 
     @override
-    async def invoke(self, endpoint: str, **kwargs: Any) -> Any:
+    async def _invoke(self, endpoint: str, **kwargs: Any) -> Any:
         """Invoke a request to Steam Web API."""
         queries = "&".join(f"{k}={v}" for k, v in kwargs.items())
         url = f"https://api.steampowered.com/{endpoint}/?key={self.api_key}&{queries}"
@@ -150,4 +159,4 @@ class SteamWebAPIClient(APIClient):
         -----
         * https://steamapi.xpaw.me/#IDOTA2MatchStats_570/GetRealtimeStats.
         """
-        return await self.invoke("IDOTA2MatchStats_570/GetRealtimeStats/v1", server_steam_id=server_steam_id)
+        return await self._invoke("IDOTA2MatchStats_570/GetRealtimeStats/v1", server_steam_id=server_steam_id)
