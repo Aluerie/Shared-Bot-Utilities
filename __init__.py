@@ -18,5 +18,5 @@ from . import (
     fmt as fmt,
     fuzzy as fuzzy,
     helpers as helpers,
-    seven_tv as seven_tv,
+    seven_tv_api as seven_tv_api,
 )

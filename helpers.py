@@ -7,12 +7,35 @@ from __future__ import annotations
 
 import logging
 from time import perf_counter
-from typing import Self
+from typing import Any, Self, override
 
 __all__ = ("measure_time",)
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
+
+
+class _MissingSentinel:
+    __slots__ = ()
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        return False
+
+    def __bool__(self) -> bool:
+        return False
+
+    @override
+    def __hash__(self) -> int:
+        return 0
+
+    @override
+    def __repr__(self) -> str:
+        return "..."
+
+
+# TODO: I think python 3.15 provides a natural solution to this?
+MISSING: Any = _MissingSentinel()
 
 
 class measure_time:  # noqa: N801 # it's fine to call classes lowercase if they aren't used as actual classes per PEP-8.
