@@ -2,6 +2,7 @@
 Global Shared Constants.
 
 Terrible module name but I've already have a bunch of "constants.py", "const.py" files.
+So idk.
 Maybe I will think of a better name in future.
 
 License

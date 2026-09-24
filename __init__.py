@@ -10,13 +10,13 @@ License
 """
 
 from . import (
-    globals as globals,
     concepts as concepts,
     dota2 as dota2,
     dt as dt,
     errors as errors,
     fmt as fmt,
     fuzzy as fuzzy,
+    globs as globs,
     helpers as helpers,
     seven_tv_gql as seven_tv_gql,
 )

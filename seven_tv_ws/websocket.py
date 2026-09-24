@@ -6,8 +6,7 @@ import json
 import logging
 import signal
 import socket
-from collections.abc import Callable, Coroutine
-from typing import Any, Self, override
+from typing import TYPE_CHECKING, Any, Self, override
 
 import aiohttp
 import websockets
@@ -31,8 +30,21 @@ from .models import (
     WebsocketMessageType,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
+
 _log = logging.getLogger(__name__)
 _log.setLevel(logging.INFO)
+
+# https://docs.astral.sh/ruff/rules/asyncio-dangling-task/
+# # TODO: learn async to write a saner solution
+# _background_tasks: set[asyncio.Task[Any]] = set()
+
+
+# def add_to_background_tasks(coro: Coroutine[Any, Any, None]) -> None:
+#     task = asyncio.create_task(coro)
+#     _background_tasks.add(task)
+#     task.add_done_callback(_background_tasks.discard)
 
 
 class SevenTVWebSocket:
@@ -40,7 +52,7 @@ class SevenTVWebSocket:
 
     def __init__(
         self,
-        callback: Callable[[ResponseTypes], Coroutine] = None,
+        callback: Callable[[ResponseTypes], Coroutine] | None = None,
         websocket_url: str | None = None,
     ) -> None:
         self.WS_URL: str = websocket_url or "wss://events.7tv.io/v3"
@@ -136,7 +148,7 @@ class SevenTVWebSocket:
                 _log.debug(f"Received message: {message}")
                 asyncio.create_task(self.on_message(message))
         except Exception as e:
-            logging.exception(f"Error in message handler: {e}")
+            _log.exception(f"Error in message handler: {e}")
             await self.reconnect()
 
     async def on_message(self, message: str) -> None:
@@ -151,6 +163,9 @@ class SevenTVWebSocket:
                 _log.exception("Error in callback: %s", e)
 
     async def parse_message(self, message: dict[str, Any]) -> ResponseTypes | None:
+        """Parse Message."""
+        assert self.ws
+
         message_data = message.get("d")
         message_code = message.get("op")
 

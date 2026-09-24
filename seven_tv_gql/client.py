@@ -18,7 +18,7 @@ import orjson
 from aiohttp import ClientSession
 
 from shared import errors
-from shared.globals import Global7TV
+from shared.globs import Global7TV
 
 from .exceptions import InvokeQueryError
 from .models import PartialEmote, PartialEmoteSet, PartialUser
