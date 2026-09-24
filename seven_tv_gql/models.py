@@ -109,19 +109,18 @@ class Emote(PartialEmote):
         self.animated = self._animated = data["flags"]["animated"]
 
 
-class EmoteSetEmote(Emote):
+class EmoteSetEmote:
     """Emote Set Emote."""
 
     def __init__(
         self,
-        client: GraphQL7TVClient,
-        data: EmotePayload,
         alias: str,
-        partial_emote_set: PartialEmoteSet,
+        emote: PartialEmote | Emote,
+        emote_set: PartialEmoteSet,
     ) -> None:
-        super().__init__(client, data)
         self.alias: str = alias
-        self.partial_emote_set: PartialEmoteSet = partial_emote_set
+        self.emote: PartialEmote | Emote = emote
+        self.emote_set: PartialEmoteSet = emote_set
 
 
 class PartialEmoteSet:
@@ -284,8 +283,6 @@ class PartialUser:
     def __init__(self, client: GraphQL7TVClient, twitch_id: str) -> None:
         self._client: GraphQL7TVClient = client
         self.twitch_id: str = twitch_id
-
-    # async def get_linked_emote_set_id(self):
 
     async def fetch_active_emote_set(self) -> PartialEmoteSet:
         """Get currently active 7TV emote set for the broadcaster."""
