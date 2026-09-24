@@ -35,4 +35,5 @@ DIGITS = [
 class Global7TV(StrEnum):
     """Global 7TV Emotes."""
 
+    EZ = "EZ"
     FeelsDankMan = "FeelsDankMan"
