@@ -140,4 +140,4 @@ class Dota2Client(dota2.Client):
             return
 
         msg = "Something went wrong with `refresh_database_dota_constants`."
-        raise errors.PlaceholderError(msg)
+        raise errors.SomethingWentWrongError(msg)

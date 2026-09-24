@@ -10,7 +10,7 @@ License
 """
 
 from . import (
-    common_const as common_const,
+    globals as globals,
     concepts as concepts,
     dota2 as dota2,
     dt as dt,
@@ -18,5 +18,5 @@ from . import (
     fmt as fmt,
     fuzzy as fuzzy,
     helpers as helpers,
-    seven_tv as seven_tv,
+    seven_tv_gql as seven_tv_gql,
 )

@@ -3,6 +3,19 @@
 All exceptions raised by me should be defined in this file.
 It's just my small code practice.
 
+
+Notes
+-----
+The following errors are used as special means to notify the chatters about the error.
+Their type depends on whether the developers should also be notified.
+|                           | User notified?                       | Devs notified? |
+| ------------------------- | ------------------------------------ | -------------- |
+| SilentError               | No                                   | No             |
+| RespondWithError          | Yes                                  | No             |
+| RespondAndNotifyDevsError | Yes                                  | Yes            |
+| SomethingWentWrongError   | Yes, but with 'Something Went Wrong' | Yes            |
+| Other Exception Types     | Depends - look into Error Handlers   | Depends        |
+
 License
 -------
 * This Source Code Form is subject to the terms of the [Mozilla Public License v2.0](<http://mozilla.org/MPL/2.0/>).
@@ -18,8 +31,46 @@ class CustomError(Exception):
     """The base exception for my (@Aluerie) projects. All other exceptions should inherit from this."""
 
 
+########################################
+# ERRORS CONTROLLING RESPONSE BEHAVIOR #
+########################################
+
+
 class SilentError(CustomError):
     """Errors to be ignored by error handlers."""
+
+
+class RespondWithError(CustomError):
+    """Error class for which Error Handler should just send the message back into the context.
+
+    Not an error per se (at least not always), but useful when we have a known exceptional situation
+    that requires an early exit but still with a command response.
+    """
+
+
+class RespondAndNotifyDevsError(CustomError):
+    """."""
+
+    def __init__(self, msg: str, for_devs: str) -> None:
+        self.for_devs: str = for_devs
+        super().__init__(msg)
+
+
+class SomethingWentWrongError(CustomError):
+    """Placeholder Error for "Something went wrong" moments.
+
+    An error type I mostly use for the debugging purposes in places I'm not sure what to do about.
+    Can attach some debug data into `.data` attribute for more debugging information.
+    """
+
+    def __init__(self, msg: str, **kwargs: Any) -> None:
+        self.data: dict[str, Any] = kwargs
+        super().__init__(msg)
+
+
+########################################
+# Other #
+########################################
 
 
 class APIDataError(CustomError):
@@ -48,26 +99,6 @@ class UnsatisfyingResultError(CustomError):
     Useful for API calls where the response was correct, but, for example,
     some conditions were not met.
     """
-
-
-class RespondWithError(CustomError):
-    """Error class for which Error Handler should just send the message back into the context.
-
-    Not an error per se (at least not always), but useful when we have a known exceptional situation
-    that requires an early exit but still with a command response.
-    """
-
-
-class PlaceholderError(CustomError):
-    """Placeholder Error for "Something went wrong" moments.
-
-    An error type I mostly use for the debugging purposes in places I'm not sure what to do about.
-    Can attach some debug data into `.data` attribute for more debugging information.
-    """
-
-    def __init__(self, message: str, **kwargs: Any) -> None:
-        self.data: dict[str, Any] = kwargs
-        super().__init__(message)
 
 
 class BadUserInputError(RespondWithError):

@@ -127,3 +127,13 @@ def get_log_fmt(handler: logging.Handler) -> logging.Formatter:
         )
 
     return formatter
+
+
+class PrefixLoggerAdapter(logging.LoggerAdapter[Any]):
+    def __init__(self, logger: logging.Logger, prefix: str) -> None:
+        super().__init__(logger)
+        self.prefix = prefix
+
+    @override
+    def process(self, msg: str, kwargs: Any) -> tuple[str, Any]:
+        return f"{self.prefix} {msg}", kwargs

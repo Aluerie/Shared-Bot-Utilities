@@ -1,4 +1,21 @@
-__all__ = ("DIGITS",)
+"""
+Global Shared Constants.
+
+Terrible module name but I've already have a bunch of "constants.py", "const.py" files.
+Maybe I will think of a better name in future.
+
+License
+-------
+* License: MPL-2.0, see LICENSE for more details.
+* Copyright: (C) 2020-present @Aluerie.
+"""
+
+from enum import StrEnum
+
+__all__ = (
+    "DIGITS",
+    "Global7TV",
+)
 
 DIGITS = [
     "\N{DIGIT ZERO}\N{COMBINING ENCLOSING KEYCAP}",
@@ -12,3 +29,9 @@ DIGITS = [
     "\N{DIGIT EIGHT}\N{COMBINING ENCLOSING KEYCAP}",
     "\N{DIGIT NINE}\N{COMBINING ENCLOSING KEYCAP}",
 ]
+
+
+class Global7TV(StrEnum):
+    """Global 7TV Emotes."""
+
+    FeelsDankMan = "FeelsDankMan"
