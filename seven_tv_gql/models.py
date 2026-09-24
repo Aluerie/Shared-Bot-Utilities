@@ -446,13 +446,11 @@ mutation UpdateEditorState($userId: Id!, $editorId: Id!, $state: UserEditorUpdat
             if message == "BAD_REQUEST editor is not pending":
                 bot_editor = await self.check_bot_editor()
                 if bot_editor.state == "ACCEPTED":
-                    respond = f"7TV editor request was already accepted {Global7TV.FeelsDankMan}"
+                    respond = "7TV editor request was already accepted"
                 else:
-                    respond = f"7TV editor request is not pending {Global7TV.FeelsDankMan}"
+                    respond = "7TV editor request is not pending"
             elif message == "LOAD_ERROR user editor not found":
-                respond = (
-                    f"I don't see any 7TV editor requests from this streamer (have you sent it?) {Global7TV.FeelsDankMan}"
-                )
+                respond = "I don't see any 7TV editor requests from this streamer (have you sent it?)"
             if respond:
                 raise errors.RespondWithError(respond) from None
             raise
