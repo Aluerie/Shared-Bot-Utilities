@@ -1,4 +1,6 @@
-from typing import Any, Dict, List, Optional, Self, Union
+from __future__ import annotations
+
+from typing import Any, Self, override
 
 
 class DotDict(dict):
@@ -66,7 +68,9 @@ class EventType(DotDict):
 
 
 class UserConnection:
-    def __init__(self, data: dict[str, Any]):
+    """UserConnection."""
+
+    def __init__(self, data: dict[str, Any]) -> None:
         self.id: str = data.get("id")
         self.username: str = data.get("username")
         self.display_name: str = data.get("display_name")
@@ -75,12 +79,15 @@ class UserConnection:
         self.emote_capacity: int = data.get("emote_capacity")
         self.emote_set_id: str = data.get("emote_set_id")
 
+    @override
     def __str__(self) -> str:
         return f"<UserConnection id={self.id} username={self.username} display_name={self.display_name} platform={self.platform} linked_at={self.linked_at} emote_capacity={self.emote_capacity} emote_set_id={self.emote_set_id}>"
 
 
 class User:
-    def __init__(self, data: dict[str, Any]):
+    """User."""
+
+    def __init__(self, data: dict[str, Any]) -> None:
         self.id: str = data.get("id")
         self.username: str = data.get("username")
         self.display_name: str = data.get("display_name")
@@ -89,11 +96,14 @@ class User:
         self.roles: list[str] | None = data.get("roles")
         self.connections: list[UserConnection] | None = data.get("connections")
 
+    @override
     def __str__(self) -> str:
         return f"<User id={self.id} username={self.username} display_name={self.display_name} avatar_url={self.avatar_url} style={self.style} roles={self.roles} connections={[str(connection) for connection in self.connections] if self.connections else []}>"
 
 
 class ChangeField:
+    """ChangeField."""
+
     def __init__(self, data: dict[str, Any]) -> None:
         self.key: str = data.get("key")
         self.index: int = data.get("index")
@@ -105,11 +115,14 @@ class ChangeField:
             value if not value or isinstance(value, dict) else [ChangeField(c) for c in value]
         )
 
+    @override
     def __str__(self) -> str:
         return f"<ChangeField key={self.key} index={self.index} nested={self.nested} value={self.value} old_value={self.old_value}>"
 
 
 class ChangeMap:
+    """ChangeMap."""
+
     def __init__(self, data: dict[str, Any]) -> None:
         self.id: str = data.get("id")
         self.kind: int = data.get("kind")
@@ -121,11 +134,14 @@ class ChangeMap:
         self.pushed: list[ChangeField] | None = [ChangeField(d) for d in data.get("pushed", [])]
         self.pulled: list[ChangeField] | None = [ChangeField(d) for d in data.get("pulled", [])]
 
+    @override
     def __str__(self) -> str:
         return f"<ChangeMap id={self.id} kind={self.kind} contextual={self.contextual} actor={self.actor} added={[str(added) for added in self.added] if self.added else []} updated={[str(updated) for updated in self.updated] if self.updated else []} removed={[str(removed) for removed in self.removed] if self.removed else []} pushed={[str(pushed) for pushed in self.pushed] if self.pushed else []} pulled={[str(pulled) for pulled in self.pulled] if self.pulled else []}>"
 
 
 class SubscriptionCondition:
+    """SubscriptionCondition."""
+
     def __init__(
         self,
         object_id: str | None = None,
@@ -140,11 +156,14 @@ class SubscriptionCondition:
         if host_id:
             self.data["host_id"] = host_id
 
+    @override
     def __str__(self) -> str:
         return f"<SubscriptionCondition data={self.data}>"
 
 
 class SubscriptionData:
+    """SubscriptionData."""
+
     def __init__(
         self,
         subscription_type: EventType | str,
@@ -155,85 +174,110 @@ class SubscriptionData:
             "condition": condition.data if condition else None,
         }
 
+    @override
     def __str__(self) -> str:
         return f"<SubscriptionData data={self.data}>"
 
 
 class WebsocketMessage:
+    """WebsocketMessage."""
+
     def __init__(self, data: dict[str, Any]) -> None:
         self.raw_data = data
 
+    @override
     def __str__(self) -> str:
         return "<WebsocketMessage>"
 
 
 class Dispatch(WebsocketMessage):
+    """Dispatch."""
+
     def __init__(self, data: dict[str, Any]) -> None:
         self.type: EventType = data.get("type")
         self.body: ChangeMap = ChangeMap(data.get("body"))
         super().__init__(data)
 
+    @override
     def __str__(self) -> str:
         return f"<Dispatch type={self.type} body={self.body}>"
 
 
 class Hello(WebsocketMessage):
+    """Hello."""
+
     def __init__(self, data: dict[str, Any]) -> None:
         self.session_id: str = data.get("session_id")
         self.heartbeat_interval: int = data.get("heartbeat_interval")
         self.subscription_limit: int = data.get("subscription_limit")
         super().__init__(data)
 
+    @override
     def __str__(self) -> str:
         return f"<Hello session_id={self.session_id} heartbeat_interval={self.heartbeat_interval} subscription_limit={self.subscription_limit}>"
 
 
 class Heartbeat(WebsocketMessage):
+    """Heartbeat."""
+
     def __init__(self, data: dict[str, int]) -> None:
         self.count: int = data.get("count")
         super().__init__(data)
 
+    @override
     def __str__(self) -> str:
         return f"<Heartbeat count={self.count}>"
 
 
 class Ack(WebsocketMessage):
+    """Ack."""
+
     def __init__(self, data: dict[str, Any]) -> None:
         self.command: str = data.get("command")
         self.data: Any = data.get("data")
         super().__init__(data)
 
+    @override
     def __str__(self) -> str:
         return f"<Ack command={self.command} data={self.data}>"
 
 
 class Reconnect(WebsocketMessage):
+    """Reconnect."""
+
     def __init__(self, data: dict[str, Any]) -> None:
         super().__init__(data)
 
+    @override
     def __str__(self) -> str:
         return "<Reconnect>"
 
 
 class Error(WebsocketMessage):
+    """Error."""
+
     def __init__(self, data: dict[str, Any]) -> None:
         self.message: str = data.get("message")
         self.fields: dict[str, str] = data.get("fields")
         super().__init__(data)
 
+    @override
     def __str__(self) -> str:
         return f"<Error message={self.message} fields={self.fields}>"
 
 
 class EndOfStream(WebsocketMessage):
+    """EndOfStream."""
+
     def __init__(self, data: dict[str, Any]) -> None:
         self.code: ServerCloseCodes = data.get("code")
         self.should_reconnect: bool = self.code in ServerCloseCodes.RECONNECT_CODES
         self.message: str | None = data.get("message")
         super().__init__(data)
 
+    @override
     def __str__(self) -> str:
         return f"<EndOfStream code={self.code} should_reconnect={self.should_reconnect} message={self.message}>"
 
 
-ResponseTypes = Union[Dispatch, Hello, Heartbeat, Ack, Reconnect, Error, EndOfStream]
+ResponseTypes = Dispatch | Hello | Heartbeat | Ack | Reconnect | Error | EndOfStream

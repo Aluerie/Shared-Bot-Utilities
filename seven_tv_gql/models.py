@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Literal, NamedTuple, NotRequired, TypedDict, c
 from shared.types_.seven_tv import GetUserEditors
 
 from .. import errors
-from ..globs import Global7TV
 from .exceptions import ConflictingEmoteNameError, EmoteNotFoundInSetError, InvokeQueryError
 
 if TYPE_CHECKING:

@@ -18,7 +18,6 @@ import orjson
 from aiohttp import ClientSession
 
 from shared import errors
-from shared.globs import Global7TV
 
 from .exceptions import InvokeQueryError
 from .models import PartialEmote, PartialEmoteSet, PartialUser
@@ -127,8 +126,7 @@ class GraphQL7TVClient:
                 # If bearer token expired -
                 # 7TV sends {'status': 'Unauthorized', 'error_code': 1000, 'error': 'invalid session'}
                 msg = (
-                    f"I am not unauthorized to do this - 7TV logged me out {Global7TV.FeelsDankMan} "
-                    "Irene will fix it (surely permanently this time)"
+                    "I am not unauthorized to do this - 7TV logged me out; Irene will fix it (surely permanently this time)"
                 )
                 for_devs = "The bot's 7TV Bearer Token is expired."
                 raise errors.RespondAndNotifyDevsError(msg, for_devs)
