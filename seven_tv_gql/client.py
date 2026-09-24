@@ -63,10 +63,10 @@ class GraphQL7TVClient:
 
     def __init__(
         self,
-        bearer_token: str,
         *,
         pool: PoolTypedWithAny,
         bot_7tv_user_id: str,
+        bearer_token: str | None = None,
     ) -> None:
         self._bearer_token = bearer_token
         self.user_id: str = bot_7tv_user_id
@@ -99,13 +99,8 @@ class GraphQL7TVClient:
 
         async with (self.session).post(
             url="https://api.7tv.app/v4/gql",
-            json={
-                "query": query,
-                "variables": variables,
-            },
-            headers={
-                "Authorization": self._bearer_token,
-            },
+            json={"query": query, "variables": variables},
+            headers={"Authorization": self._bearer_token} if self._bearer_token else None,
         ) as response:
             gql_json = await response.json(loads=orjson.loads)
 
