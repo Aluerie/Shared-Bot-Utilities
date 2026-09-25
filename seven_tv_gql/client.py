@@ -164,7 +164,7 @@ query TopSearchByEmoteName($emoteName: String) {
         try:
             return PartialEmote(self, emote_id=emote_ids[index])
         except IndexError:
-            msg = f"Result search doesn't have that many emotes (there are only {len(res)})"
+            msg = f"Result search doesn't have that many emotes (only one {len(res)})"
             raise errors.RespondWithError(msg) from None
 
     # async def fetch_emote(self, emote_id: str) -> Emote:

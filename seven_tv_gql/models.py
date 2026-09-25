@@ -238,6 +238,7 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
     }
   }
 }"""
+        print(self.id, emote_id, emote_alias)
         variables = {
             "emoteSetId": self.id,
             "emoteIdWithAlias": {"emoteId": emote_id, "alias": emote_alias},
