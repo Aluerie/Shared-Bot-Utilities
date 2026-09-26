@@ -238,7 +238,6 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
     }
   }
 }"""
-        print(self.id, emote_id, emote_alias)
         variables = {
             "emoteSetId": self.id,
             "emoteIdWithAlias": {"emoteId": emote_id, "alias": emote_alias},
@@ -248,6 +247,7 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
         except InvokeQueryError as error:
             if error.message == "BAD_REQUEST this emote has a conflicting name":
                 try:
+                    # TODO: Maybe remove this, why do we do an extra request
                     await self.fetch_emote_alias(emote_id)
                 except EmoteNotFoundInSetError:
                     # This means the new emote has a conflicting name
@@ -437,20 +437,19 @@ mutation UpdateEditorState($userId: Id!, $editorId: Id!, $state: UserEditorUpdat
         try:
             res = await self._client.invoke(query, variables)
         except InvokeQueryError as error:
-            message = error.message
-
-            respond = ""
-            if message == "BAD_REQUEST editor is not pending":
-                bot_editor = await self.check_bot_editor()
-                if bot_editor.state == "ACCEPTED":
-                    respond = "7TV editor request was already accepted"
-                else:
-                    respond = "7TV editor request is not pending"
-            elif message == "LOAD_ERROR user editor not found":
-                respond = "I don't see any 7TV editor requests from this streamer (have you sent it?)"
-            if respond:
-                raise errors.RespondWithError(respond) from None
-            raise
+            match error.message:
+                case "BAD_REQUEST editor is not pending":
+                    msg = (
+                        "7TV editor request was already accepted"
+                        if (await self.check_bot_editor()).state == "ACCEPTED"
+                        else "7TV editor request is not pending"
+                    )
+                    raise errors.RespondWithError(msg) from None
+                case "LOAD_ERROR user editor not found":
+                    msg = "I don't see any 7TV editor requests from this streamer (have you sent it?)"
+                    raise errors.RespondWithError(msg) from None
+                case _:
+                    raise
 
         return res["userEditors"]["editor"]["updateState"]["state"]
 
