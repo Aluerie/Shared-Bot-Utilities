@@ -39,4 +39,16 @@ class Global7TV(StrEnum):
     FeelsDankMan = "FeelsDankMan"
 
 
-STV_EMOTE_SET_EMOTES_CAPACITY_LIMIT = 1000
+class Irene(StrEnum):
+    """Some often used 7TV snowflakes."""
+
+    stv_emote_set_id = "01FAQVCS500002EV4FV330P46A"
+    stv_user_id = "01FAQVCS500002EV4FV330P46A"
+    twitch_id = "180499648"
+
+
+class IrenesBot(StrEnum):
+    """Some often used 7TV snowflakes."""
+
+    stv_emote_set_id = "01FAQVCS500002EV4FV330P46A"
+    stv_user_id = "01KFF67D46PJPD1S6DPFFT06E3"

@@ -20,12 +20,14 @@ from aiohttp import ClientSession
 from shared import errors
 
 from .exceptions import InvokeQueryError
-from .models import PartialEmote, PartialEmoteSet, PartialUser
+from .models import Emote, PartialEmote, PartialEmoteSet, PartialUser
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from shared.types_.database import PoolTypedWithAny
+
+    from ..types_ import seven_tv as stv_types
 
 
 __all__ = ("GraphQL7TVClient",)
@@ -73,7 +75,7 @@ class GraphQL7TVClient:
         self.session = ClientSession()
         self.pool = pool
 
-    async def invoke(self, query: str, variables: Mapping[str, Any]) -> dict[str, Any]:
+    async def invoke(self, query: str, variables: Mapping[str, Any]) -> Any:
         """Invoke a request to 7TV GraphQL API.
 
         Parameters
@@ -124,7 +126,7 @@ class GraphQL7TVClient:
                     "I am not unauthorized to do this - 7TV logged me out; Irene will fix it (surely permanently this time)"
                 )
                 for_devs = "The bot's 7TV Bearer Token is expired."
-                raise errors.RespondAndNotifyDevsError(msg, for_devs)
+                raise errors.RespondAndNotifyDevsError(msg, for_devs, gql_json=gql_json)
             case _:
                 msg = "Something went wrong"
                 raise errors.SomethingWentWrongError(msg, data=gql_json)
@@ -153,32 +155,38 @@ query TopSearchByEmoteName($emoteName: String) {
     ) {
       items {
         id
+        defaultName
       }
     }
   }
 }
         """
         variables = {"emoteName": emote_name}
-        res = await self.invoke(query, variables)
-        emote_ids: list[str] = [item["id"] for item in res["emotes"]["search"]["items"]]
+        res: stv_types.TopSearchByEmoteName = await self.invoke(query, variables)
+        # For some reason "exactMatch": true filter still allows difference capitalizations so we still have to `==`.
+        emote_items = sorted(
+            res["emotes"]["search"]["items"],
+            key=lambda item: item["defaultName"] == emote_name,
+            reverse=True,
+        )
         try:
-            return PartialEmote(self, emote_id=emote_ids[index])
+            return PartialEmote(self, emote_id=emote_items[index]["id"])
         except IndexError:
             msg = f"Result search doesn't have that many emotes (only one {len(res)})"
             raise errors.RespondWithError(msg) from None
 
-    # async def fetch_emote(self, emote_id: str) -> Emote:
-    #     """
-    #     Get defaultName for an emote.
+    async def fetch_emote(self, emote_id: str) -> Emote:
+        """
+        Get defaultName for an emote.
 
-    #     Parameters
-    #     ----------
-    #     emote_id: str
-    #         7TV emote id.
+        Parameters
+        ----------
+        emote_id: str
+            7TV emote id.
 
-    #     Returns
-    #     -------
-    #     Emote
-    #         Seven TV Emote.
-    #     """
-    #     return await PartialEmote(self, emote_id).fetch()
+        Returns
+        -------
+        Emote
+            Seven TV Emote.
+        """
+        return await PartialEmote(self, emote_id).fetch()

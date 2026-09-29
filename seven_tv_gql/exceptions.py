@@ -38,3 +38,7 @@ class ConflictingEmoteNameError(SevenTVError, errors.RespondWithError):
 
 class LackingPrivilegesError(SevenTVError, errors.RespondWithError):
     """Lacking Privileges Error."""
+
+
+class InvalidEmoteAliasError(SevenTVError, errors.RespondWithError):
+    """Invalid Emote Alias Error."""

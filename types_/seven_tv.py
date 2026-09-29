@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Literal, TypedDict
 
-__all__ = ("GetUserEditors",)
+__all__ = (
+    "GetUserEditors",
+    "TopSearchByEmoteName",
+)
 
 #####################
 # CheckBotEditorFor #
@@ -35,3 +38,27 @@ class GUEPermissions(TypedDict):
 
 class GUEEmoteSetPermissions(TypedDict):
     manage: bool
+
+
+########################
+# TopSearchByEmoteName #
+########################
+
+
+class TopSearchByEmoteName(TypedDict):
+    """TopSearchByEmoteName."""
+
+    emotes: TPSBENEmotes
+
+
+class TPSBENEmotes(TypedDict):
+    search: TPSBENSearch
+
+
+class TPSBENSearch(TypedDict):
+    items: list[TPSBENItem]
+
+
+class TPSBENItem(TypedDict):
+    id: str
+    defaultName: str

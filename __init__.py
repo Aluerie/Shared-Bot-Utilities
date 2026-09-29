@@ -17,6 +17,6 @@ from . import (
     fmt as fmt,
     fuzzy as fuzzy,
     globs as globs,
-    helpers as helpers,
+    other as other,
     seven_tv_gql as seven_tv_gql,
 )

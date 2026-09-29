@@ -9,10 +9,11 @@ License
 
 from __future__ import annotations
 
+import pprint
 from enum import IntEnum
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, Any, override
 
-from discord.utils import MISSING
+from .other import MISSING
 
 if TYPE_CHECKING:
     import datetime
@@ -60,6 +61,15 @@ def codeblock(text: str, language: str = "py") -> str:
     For languages codes supported by Discord you can look the variable `fmt.CODE_LANGUAGES`.
     """
     return f"```{language}\n{text}```"
+
+
+def pformat_dict(data: dict[str, Any]) -> str:
+    """Pformat Kwarg or dictionaries (mainly for the discord messages)."""
+    return codeblock(
+        "\n".join(f"[{name}]: {pprint.pformat(repr(value), indent=4)}" for name, value in data.items())
+        if data
+        else "No arguments"
+    )
 
 
 def ordinal(n: int | str) -> str:
