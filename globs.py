@@ -37,3 +37,6 @@ class Global7TV(StrEnum):
 
     EZ = "EZ"
     FeelsDankMan = "FeelsDankMan"
+
+
+STV_EMOTE_SET_EMOTES_CAPACITY_LIMIT = 1000

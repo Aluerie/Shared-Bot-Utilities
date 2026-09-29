@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, NamedTuple, NotRequired, TypedDict, cast
+from typing import TYPE_CHECKING, Literal, NamedTuple, NotRequired, TypedDict, cast, override
 
 from shared.types_.seven_tv import GetUserEditors
 
-from .. import errors
+from .. import errors, globs
 from .exceptions import ConflictingEmoteNameError, EmoteNotFoundInSetError, InvokeQueryError
 
 if TYPE_CHECKING:
@@ -112,15 +112,30 @@ class Emote(PartialEmote):
 class EmoteSetEmote:
     """Emote Set Emote."""
 
+    if TYPE_CHECKING:
+        id: str
+        emote: PartialEmote | Emote
+        emote_set: PartialEmoteSet
+
     def __init__(
         self,
+        client: GraphQL7TVClient,
         alias: str,
-        emote: PartialEmote | Emote,
-        emote_set: PartialEmoteSet,
+        emote: str | PartialEmote | Emote,
+        emote_set: str | PartialEmoteSet,
     ) -> None:
+        self._client = client
         self.alias: str = alias
-        self.emote: PartialEmote | Emote = emote
-        self.emote_set: PartialEmoteSet = emote_set
+        if isinstance(emote, str):
+            self.id = emote
+            self.emote = PartialEmote(client, emote)
+        else:
+            self.id = emote.id
+            self.emote = emote
+        if isinstance(emote_set, str):
+            self.emote_set = PartialEmoteSet(client, emote_set)
+        else:
+            self.emote_set = emote_set
 
 
 class PartialEmoteSet:
@@ -129,6 +144,38 @@ class PartialEmoteSet:
     def __init__(self, client: GraphQL7TVClient, emote_set_id: str) -> None:
         self._client: GraphQL7TVClient = client
         self.id: str = emote_set_id
+
+    @override
+    def __repr__(self) -> str:
+        return f"<EmoteSet id={self.id}>"
+
+    async def fetch_all_emotes(self) -> list[EmoteSetEmote]:
+        """Fetch all emotes in the set."""
+        res = await self._client.invoke(
+            query="""
+query EmotesInSet($id: Id!, $query: String, $page: Int!, $perPage: Int!) {
+  emoteSets {
+    emoteSet(id: $id) {
+      emotes(query: $query, page: $page, perPage: $perPage) {
+        items {
+          id
+          alias
+        }
+      }
+    }
+  }
+}  """,
+            variables={
+                "id": self.id,
+                # No need to specify $query - that's crazy.
+                "page": 1,
+                "perPage": globs.STV_EMOTE_SET_EMOTES_CAPACITY_LIMIT,
+            },
+        )
+        return [
+            EmoteSetEmote(self._client, item["alias"], item["id"], self)
+            for item in res["emoteSets"]["emoteSet"]["emotes"]["items"]
+        ]
 
     async def fetch_emote_alias(self, emote_id: str) -> str:
         """
