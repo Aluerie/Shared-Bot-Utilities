@@ -122,6 +122,7 @@ class CommitInfo:
     utc_dt: datetime.datetime
     tz: datetime.timezone
 
+    @property
     def emojified_title(self) -> str | None:
         """Return the commit's short title but replace :gitmoji: with a corresponding unicode character if present.
 
@@ -131,10 +132,12 @@ class CommitInfo:
         """
         return re.sub(r"^(?P<emoji_code>:[\w_-]+:)", lambda mo: GITMOJI_MAPPING[mo.group("emoji_code")], self.short_title)
 
+    @property
     def dt_as_tz(self) -> datetime.datetime:
         """Return `self.utc_dt` (UTC commit time creation) as `.astimezone`."""
         return self.utc_dt.astimezone(self.tz)
 
+    @property
     def url(self) -> str:
         """Get commit's url."""
         if repo_url := self.repo.remotes["origin"].url:
