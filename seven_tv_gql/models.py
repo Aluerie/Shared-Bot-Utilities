@@ -265,14 +265,10 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
     async def validate_emote_alias(
         self,
         emote_id: str,
-        chatter_id: str,
         broadcaster_id: str,
         emote_alias: str | None = None,
     ) -> None:
         """Validate emote_alias."""
-        if chatter_id in {broadcaster_id, globs.Irene.twitch_id}:
-            return
-
         # query = "SELECT bad_word FROM ttv_stv_blacklist WHERE broadcaster_id = $1;"
         # blacklisted_words: list[str] = [r for (r,) in await self._client.pool.fetch(query, broadcaster_id)]
 
@@ -296,7 +292,6 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
         self,
         emote_id: str,
         *,
-        chatter_id: str,
         broadcaster_id: str,
         emote_alias: str | None = None,
     ) -> PartialEmote:
@@ -315,7 +310,7 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
         str
             `emote_set_id`, which is pretty illogical and not useful.
         """
-        await self.validate_emote_alias(emote_id, chatter_id, broadcaster_id, emote_alias)
+        await self.validate_emote_alias(emote_id, broadcaster_id, emote_alias)
 
         query = """
 mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!) {
@@ -357,13 +352,12 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
         self,
         emote_id: str,
         *,
-        chatter_id: str,
         broadcaster_id: str,
         new_emote_alias: str,
         old_emote_alias: str | None = None,
     ) -> PartialEmote:
         """Rename 7tv emote."""
-        await self.validate_emote_alias(emote_id, chatter_id, broadcaster_id, new_emote_alias)
+        await self.validate_emote_alias(emote_id, broadcaster_id, new_emote_alias)
 
         query = """
 mutation EmoteSetRenameEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!, $new_name: String!) {
