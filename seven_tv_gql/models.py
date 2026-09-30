@@ -256,7 +256,7 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
             res = await self._client.invoke(query, variables=variables)
         except InvokeQueryError as error:
             if error.message == "BAD_REQUEST emote not found in set":
-                msg = str(error)
+                msg = f"Emote was not found in set {EMOTE}"
                 raise EmoteNotFoundInSetError(msg) from None
             raise
 
@@ -278,7 +278,7 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
 
         query = "SELECT allow_common_words FROM ttv_stv_users WHERE broadcaster_id = $1;"
         allow_common_words: bool = await self._client.pool.fetchval(query, broadcaster_id)
-        if allow_common_words: # and not blacklisted_words:
+        if allow_common_words:  # and not blacklisted_words:
             return
 
         if emote_alias is None:
