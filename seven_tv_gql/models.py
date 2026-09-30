@@ -262,18 +262,14 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
 
         return PartialEmote(self._client, res["emoteSets"]["emoteSet"]["removeEmote"]["id"])
 
-    async def validate_emote_alias(
+    async def validate_emote_alias_not_a_common_word(
         self,
         emote_id: str,
-        broadcaster_id: str,
         emote_alias: str | None = None,
+        *,
+        allow_common_words: bool = True,
     ) -> None:
-        """Validate emote_alias."""
-        # query = "SELECT bad_word FROM ttv_stv_blacklist WHERE broadcaster_id = $1;"
-        # blacklisted_words: list[str] = [r for (r,) in await self._client.pool.fetch(query, broadcaster_id)]
-
-        query = "SELECT allow_common_words FROM ttv_stv_users WHERE broadcaster_id = $1;"
-        allow_common_words: bool = await self._client.pool.fetchval(query, broadcaster_id)
+        """Validate if emote_alias is not a common word."""
         if allow_common_words:  # and not blacklisted_words:
             return
 
@@ -284,16 +280,13 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
         if emote_alias in COMMON_WORDS:
             msg = f"Common words are not allowed to be used as emote aliases for this emote set {EMOTE}"
             raise InvalidEmoteAliasError(msg)
-        # if emote_alias in blacklisted_words:
-        #     msg = f"This emote alias is blacklisted {EMOTE}"
-        #     raise InvalidEmoteAliasError(msg)
 
     async def add_emote(
         self,
         emote_id: str,
         *,
-        broadcaster_id: str,
         emote_alias: str | None = None,
+        allow_common_words: bool = True,
     ) -> PartialEmote:
         """
         Add an emote to a 7TV emote set.
@@ -310,7 +303,7 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
         str
             `emote_set_id`, which is pretty illogical and not useful.
         """
-        await self.validate_emote_alias(emote_id, broadcaster_id, emote_alias)
+        await self.validate_emote_alias_not_a_common_word(emote_id, emote_alias, allow_common_words=allow_common_words)
 
         query = """
 mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!) {
