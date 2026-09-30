@@ -273,18 +273,24 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
         if chatter_id in {broadcaster_id, globs.Irene.twitch_id}:
             return
 
+        # query = "SELECT bad_word FROM ttv_stv_blacklist WHERE broadcaster_id = $1;"
+        # blacklisted_words: list[str] = [r for (r,) in await self._client.pool.fetch(query, broadcaster_id)]
+
         query = "SELECT allow_common_words FROM ttv_stv_users WHERE broadcaster_id = $1;"
         allow_common_words: bool = await self._client.pool.fetchval(query, broadcaster_id)
-        if allow_common_words:
+        if allow_common_words: # and not blacklisted_words:
             return
 
         if emote_alias is None:
             # we have to check emote's default name
             emote = await self._client.fetch_emote(emote_id)
             emote_alias = emote.default_name
-        if emote_alias not in COMMON_WORDS:
-            msg = "Common words are not allowed to be used as emote aliases for this emote set"
+        if emote_alias in COMMON_WORDS:
+            msg = f"Common words are not allowed to be used as emote aliases for this emote set {EMOTE}"
             raise InvalidEmoteAliasError(msg)
+        # if emote_alias in blacklisted_words:
+        #     msg = f"This emote alias is blacklisted {EMOTE}"
+        #     raise InvalidEmoteAliasError(msg)
 
     async def add_emote(
         self,
