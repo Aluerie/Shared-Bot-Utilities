@@ -1,4 +1,9 @@
+from ..globs import Global7TV
+
+STV_REQUEST_TIMEOUT = 20
+
 EMOTE_SET_EMOTES_CAPACITY_LIMIT = 1000
+EMOTE = Global7TV.FeelsDankMan
 
 COMMON_WORDS = [
     # taken and edited from https://github.com/FrankerFaceZ/Add-Ons/blob/master/src/no-bad-emotes/common.json

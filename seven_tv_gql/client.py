@@ -10,6 +10,7 @@ License
 from __future__ import annotations
 
 # import asyncio
+import asyncio
 import logging
 import re
 from typing import TYPE_CHECKING, Any
@@ -19,6 +20,7 @@ from aiohttp import ClientSession
 
 from shared import errors
 
+from .constants import EMOTE, STV_REQUEST_TIMEOUT
 from .exceptions import InvokeQueryError
 from .models import Emote, PartialEmote, PartialEmoteSet, PartialUser
 
@@ -99,12 +101,19 @@ class GraphQL7TVClient:
         match = re.search(r"^\s*(?:query|mutation)\s+(?P<query_name>\w+)\s*(?:\(|\{)", query)
         log.debug("7TV GraphQL - invoking query %s", match.group("query_name") if match else "UnknownQuery")
 
-        async with (self.session).post(
-            url="https://api.7tv.app/v4/gql",
-            json={"query": query, "variables": variables},
-            headers={"Authorization": self._bearer_token} if self._bearer_token else None,
-        ) as response:
-            gql_json = await response.json(loads=orjson.loads)
+        try:
+            async with (
+                asyncio.timeout(STV_REQUEST_TIMEOUT),
+                (self.session).post(
+                    url="https://api.7tv.app/v4/gql",
+                    json={"query": query, "variables": variables},
+                    headers={"Authorization": self._bearer_token} if self._bearer_token else None,
+                ) as response,
+            ):
+                gql_json = await response.json(loads=orjson.loads)
+        except TimeoutError:
+            msg = f"7TV didn't respond to me in time; try again later? {EMOTE}"
+            raise errors.RespondWithError(msg) from None
 
         match gql_json:
             case {"data": data} if data:

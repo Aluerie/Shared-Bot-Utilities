@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Literal, NamedTuple, NotRequired, TypedDict, c
 
 from shared.types_.seven_tv import GetUserEditors
 
-from .. import errors, globs
-from .constants import COMMON_WORDS, EMOTE_SET_EMOTES_CAPACITY_LIMIT
+from .. import errors
+from .constants import COMMON_WORDS, EMOTE, EMOTE_SET_EMOTES_CAPACITY_LIMIT
 from .exceptions import ConflictingEmoteNameError, EmoteNotFoundInSetError, InvalidEmoteAliasError, InvokeQueryError
 
 if TYPE_CHECKING:
@@ -47,8 +47,6 @@ defaultName
 flags {
     animated
 }"""
-
-EMOTE = globs.Global7TV.FeelsDankMan
 
 
 class PartialEmote:
@@ -336,6 +334,9 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
                 case m if "invalid emote alias" in m:
                     msg = f"Invalid emote alias {EMOTE}"
                     raise InvalidEmoteAliasError(msg) from None
+                case "LOAD_ERROR emote set is at capacity":
+                    msg = f"Emote set is at full capacity {EMOTE}"
+                    raise errors.RespondWithError(msg) from None
                 case _:
                     raise
 

@@ -51,8 +51,8 @@ class RespondWithError(CustomError):
 class RespondAndNotifyDevsError(CustomError):
     """."""
 
-    def __init__(self, msg: str, for_devs: str, **kwargs: Any) -> None:
-        self.for_devs: str = for_devs
+    def __init__(self, msg: str, for_devs: str | None = None, **kwargs: Any) -> None:
+        self.for_devs: str = for_devs or msg
         self.debug_data: dict[str, Any] = kwargs
         super().__init__(msg)
 

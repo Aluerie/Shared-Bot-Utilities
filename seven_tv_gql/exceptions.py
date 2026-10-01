@@ -18,7 +18,7 @@ class SevenTVError(errors.CustomError):
     """
 
 
-class InvokeQueryError(SevenTVError):
+class InvokeQueryError(SevenTVError, errors.RespondAndNotifyDevsError):
     """TransportQueryError."""
 
     def __init__(self, status: Any, message: Any, code: Any) -> None:
