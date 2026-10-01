@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 import orjson
 from aiohttp import ClientSession
 
-from shared import errors
+from shared import errors, fmt
 
 from .constants import EMOTE, STV_REQUEST_TIMEOUT
 from .exceptions import InvokeQueryError
@@ -110,7 +110,13 @@ class GraphQL7TVClient:
                     headers={"Authorization": self._bearer_token} if self._bearer_token else None,
                 ) as response,
             ):
-                gql_json = await response.json(loads=orjson.loads)
+                if response.ok:
+                    gql_json = await response.json(loads=orjson.loads)
+                else:
+                    msg = f"7TV is unavailable/lagging/down {EMOTE}"
+                    for_devs = f"7TV was not ok. Status: {response.status}\nText:\n{fmt.codeblock(await response.text())}"
+                    raise errors.RespondAndNotifyDevsError(msg, for_devs) from None
+
         except TimeoutError:
             msg = f"7TV didn't respond to me in time; try again later? {EMOTE}"
             raise errors.RespondWithError(msg) from None
