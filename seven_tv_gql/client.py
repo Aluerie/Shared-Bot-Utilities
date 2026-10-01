@@ -99,7 +99,8 @@ class GraphQL7TVClient:
             If API json response contains `errors` field then `GraphQLResponseError` is raised with its content.
         """
         match = re.search(r"^\s*(?:query|mutation)\s+(?P<query_name>\w+)\s*(?:\(|\{)", query)
-        log.debug("7TV GraphQL - invoking query %s", match.group("query_name") if match else "UnknownQuery")
+        query_name = match.group("query_name") if match else "UnknownQuery"
+        log.debug("7TV GraphQL - invoking query %s", query_name)
 
         try:
             async with (
@@ -114,8 +115,13 @@ class GraphQL7TVClient:
                     gql_json = await response.json(loads=orjson.loads)
                 else:
                     msg = f"7TV is unavailable/lagging/down {EMOTE}"
-                    for_devs = f"7TV was not ok. Status: {response.status}\nText:\n{fmt.codeblock(await response.text())}"
-                    raise errors.RespondAndNotifyDevsError(msg, for_devs) from None
+                    log.warning(
+                        "7TV response to %s was not ok. Status: %s\nText:\n%s",
+                        query_name,
+                        response.status,
+                        fmt.codeblock(await response.text()),
+                    )
+                    raise errors.RespondWithError(msg) from None
 
         except TimeoutError:
             msg = f"7TV didn't respond to me in time; try again later? {EMOTE}"
