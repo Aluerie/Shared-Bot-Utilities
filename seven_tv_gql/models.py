@@ -215,7 +215,7 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
 
         emote = res["emotes"]["emote"]["inEmoteSets"][0]["emote"]
         if emote is None:
-            msg = f"Could not find {emote_id} in emote set {self.id}"
+            msg = f"Could not find {emote_id} in emote set {self.id} {EMOTE}"
             raise EmoteNotFoundInSetError(msg)
         return emote["alias"]
 
@@ -328,10 +328,10 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
                         # TODO: Maybe remove this, why do we do an extra request
                         await self.fetch_emote_alias(emote_id)
                     except EmoteNotFoundInSetError:
-                        msg = "This emote has a conflicting name"
+                        msg = f"This emote has a conflicting name {EMOTE}"
                         raise ConflictingEmoteNameError(msg) from None
                     else:
-                        msg = "This emote is already present in the emote set"
+                        msg = f"This emote is already present in the emote set {EMOTE}"
                         raise errors.RespondWithError(msg) from None
                 case m if "invalid emote alias" in m:
                     msg = f"Invalid emote alias {EMOTE}"
@@ -345,12 +345,12 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
         self,
         emote_id: str,
         *,
-        broadcaster_id: str,
         new_emote_alias: str,
         old_emote_alias: str | None = None,
+        allow_common_words: bool = True,
     ) -> PartialEmote:
         """Rename 7tv emote."""
-        await self.validate_emote_alias(emote_id, broadcaster_id, new_emote_alias)
+        await self.validate_emote_alias_not_a_common_word(emote_id, new_emote_alias, allow_common_words=allow_common_words)
 
         query = """
 mutation EmoteSetRenameEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!, $new_name: String!) {
@@ -372,10 +372,10 @@ mutation EmoteSetRenameEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteI
         except InvokeQueryError as error:
             match error.message:
                 case "BAD_REQUEST emote name conflict":
-                    msg = "Emote name conflict"
+                    msg = f"Emote name conflict {EMOTE}"
                     raise ConflictingEmoteNameError(msg) from None
                 case "BAD_REQUEST emote not found in set":
-                    msg = "Emote not found in the emote set"
+                    msg = f"Emote not found in the emote set {EMOTE}"
                     raise EmoteNotFoundInSetError(msg) from None
                 case m if "invalid emote alias" in m:
                     msg = f"Invalid emote alias {EMOTE}"
@@ -470,8 +470,7 @@ query UserSearchEmote($platformId: String!, $emoteName: String) {
         candidate = next((c for c in candidates if c["alias"] == emote_name), None)
         if candidate is None:
             msg = (
-                f"Could not find an emote named '{emote_name}' in the streamer emotes; "
-                f"probably invalid emote input {globs.Global7TV.FeelsDankMan}"
+                f"Could not find an emote named '{emote_name}' in the streamer emotes; probably invalid emote input {EMOTE}"
             )
             raise errors.RespondWithError(msg)
         return PartialEmote(self._client, candidate["id"])
@@ -512,7 +511,7 @@ query GetUserEditors($platformId: String!) {
             None,
         )
         if bot_editor is None:
-            msg = "The bot is yet to receive a 7tv editor request from the streamer"
+            msg = f"The bot is yet to receive a 7tv editor request from the streamer {EMOTE}"
             raise errors.RespondWithError(msg)
 
         return EditorCheck(bot_editor)
