@@ -4,9 +4,8 @@ from typing import TYPE_CHECKING, Literal, NamedTuple, NotRequired, TypedDict, c
 
 from shared.types_.seven_tv import GetUserEditors
 
-from .. import errors
-from .constants import COMMON_WORDS, EMOTE, EMOTE_SET_EMOTES_CAPACITY_LIMIT
-from .exceptions import ConflictingEmoteNameError, EmoteNotFoundInSetError, InvalidEmoteAliasError, InvokeQueryError
+from . import exceptions
+from .constants import COMMON_WORDS, EMOTE_SET_EMOTES_CAPACITY_LIMIT
 
 if TYPE_CHECKING:
     from .client import GraphQL7TVClient
@@ -213,8 +212,8 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
 
         emote = res["emotes"]["emote"]["inEmoteSets"][0]["emote"]
         if emote is None:
-            msg = f"Could not find {emote_id} in emote set {self.id} {EMOTE}"
-            raise EmoteNotFoundInSetError(msg)
+            msg = f"Could not find {emote_id} in emote set {self.id}"
+            raise exceptions.EmoteNotFoundError(msg)
         return emote["alias"]
 
     async def remove_emote(self, emote_id: str) -> PartialEmote:
@@ -252,10 +251,10 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
         }
         try:
             res = await self._client.invoke(query, variables=variables)
-        except InvokeQueryError as error:
+        except exceptions.InvokeQueryError as error:
             if error.message == "BAD_REQUEST emote not found in set":
-                msg = f"Emote was not found in set {EMOTE}"
-                raise EmoteNotFoundInSetError(msg) from None
+                msg = "Emote was not found in set"
+                raise exceptions.EmoteNotFoundError(msg) from None
             raise
 
         return PartialEmote(self._client, res["emoteSets"]["emoteSet"]["removeEmote"]["id"])
@@ -276,8 +275,8 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
             emote = await self._client.fetch_emote(emote_id)
             emote_alias = emote.default_name
         if emote_alias in COMMON_WORDS:
-            msg = f"Common words are not allowed to be used as emote aliases for this emote set {EMOTE}"
-            raise InvalidEmoteAliasError(msg)
+            msg = "Common words are not allowed to be used as emote aliases for this emote set"
+            raise exceptions.InvalidEmoteAliasError(msg)
 
     async def add_emote(
         self,
@@ -319,24 +318,24 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
         }
         try:
             res = await self._client.invoke(query, variables)
-        except InvokeQueryError as error:
+        except exceptions.InvokeQueryError as error:
             match error.message:
                 case "BAD_REQUEST this emote has a conflicting name":
                     try:
                         # TODO: Maybe remove this, why do we do an extra request
                         await self.fetch_emote_alias(emote_id)
-                    except EmoteNotFoundInSetError:
-                        msg = f"This emote has a conflicting name {EMOTE}"
-                        raise ConflictingEmoteNameError(msg) from None
+                    except exceptions.EmoteNotFoundError:
+                        msg = "This emote has a conflicting name"
+                        raise exceptions.ConflictingEmoteNameError(msg) from None
                     else:
-                        msg = f"This emote is already present in the emote set {EMOTE}"
-                        raise errors.RespondWithError(msg) from None
+                        msg = "This emote is already present in the emote set"
+                        raise exceptions.UnsatisfyingResultError(msg) from None
                 case m if "invalid emote alias" in m:
-                    msg = f"Invalid emote alias {EMOTE}"
-                    raise InvalidEmoteAliasError(msg) from None
+                    msg = "Invalid emote alias"
+                    raise exceptions.InvalidEmoteAliasError(msg) from None
                 case "LOAD_ERROR emote set is at capacity":
-                    msg = f"Emote set is at full capacity {EMOTE}"
-                    raise errors.RespondWithError(msg) from None
+                    msg = "Emote set is at full capacity"
+                    raise exceptions.UnsatisfyingResultError(msg) from None
                 case _:
                     raise
 
@@ -370,17 +369,17 @@ mutation EmoteSetRenameEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteI
         }
         try:
             res = await self._client.invoke(query, variables)
-        except InvokeQueryError as error:
+        except exceptions.InvokeQueryError as error:
             match error.message:
                 case "BAD_REQUEST emote name conflict":
-                    msg = f"Emote name conflict {EMOTE}"
-                    raise ConflictingEmoteNameError(msg) from None
+                    msg = "Emote name conflict"
+                    raise exceptions.ConflictingEmoteNameError(msg) from None
                 case "BAD_REQUEST emote not found in set":
-                    msg = f"Emote not found in the emote set {EMOTE}"
-                    raise EmoteNotFoundInSetError(msg) from None
+                    msg = "Emote not found in the emote set"
+                    raise exceptions.EmoteNotFoundError(msg) from None
                 case m if "invalid emote alias" in m:
-                    msg = f"Invalid emote alias {EMOTE}"
-                    raise InvalidEmoteAliasError(msg) from None
+                    msg = "Invalid emote alias"
+                    raise exceptions.InvalidEmoteAliasError(msg) from None
                 case _:
                     raise
         return PartialEmote(self._client, res["emoteSets"]["emoteSet"]["updateEmoteAlias"]["id"])
@@ -470,10 +469,8 @@ query UserSearchEmote($platformId: String!, $emoteName: String) {
         # `==` - no `.lower()`, no nothing.
         candidate = next((c for c in candidates if c["alias"] == emote_name), None)
         if candidate is None:
-            msg = (
-                f"Could not find an emote named '{emote_name}' in the streamer emotes; probably invalid emote input {EMOTE}"
-            )
-            raise errors.RespondWithError(msg)
+            msg = f"Could not find an emote named '{emote_name}' in the streamer emotes; probably invalid emote input"
+            raise exceptions.UnsatisfyingResultError(msg)
         return PartialEmote(self._client, candidate["id"])
 
     async def check_bot_editor(self) -> EditorCheck:
@@ -512,8 +509,8 @@ query GetUserEditors($platformId: String!) {
             None,
         )
         if bot_editor is None:
-            msg = f"The bot is yet to receive a 7tv editor request from the streamer {EMOTE}"
-            raise errors.RespondWithError(msg)
+            msg = "The bot is yet to receive a 7tv editor request from the streamer"
+            raise exceptions.UnsatisfyingResultError(msg)
 
         return EditorCheck(bot_editor)
 
@@ -564,18 +561,18 @@ mutation UpdateEditorState($userId: Id!, $editorId: Id!, $state: UserEditorUpdat
 
         try:
             res = await self._client.invoke(query, variables)
-        except InvokeQueryError as error:
+        except exceptions.InvokeQueryError as error:
             match error.message:
                 case "BAD_REQUEST editor is not pending":
                     msg = (
-                        f"7TV editor request was already accepted {EMOTE}"
+                        "7TV editor request was already accepted"
                         if (await self.check_bot_editor()).state == "ACCEPTED"
-                        else f"7TV editor request is not pending {EMOTE}"
+                        else "7TV editor request is not pending"
                     )
-                    raise errors.RespondWithError(msg) from None
+                    raise exceptions.UnsatisfyingResultError(msg) from None
                 case "LOAD_ERROR user editor not found":
-                    msg = f"I don't see any 7TV editor requests from this streamer (have you sent it?) {EMOTE}"
-                    raise errors.RespondWithError(msg) from None
+                    msg = "I don't see any 7TV editor requests from this streamer (have you sent it?)"
+                    raise exceptions.UnsatisfyingResultError(msg) from None
                 case _:
                     raise
 

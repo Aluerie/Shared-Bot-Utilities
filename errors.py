@@ -26,21 +26,70 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import fmt
+
 
 class CustomError(Exception):
     """The base exception for my (@Aluerie) projects. All other exceptions should inherit from this."""
 
 
-########################################
-# ERRORS CONTROLLING RESPONSE BEHAVIOR #
-########################################
+class BotError(CustomError):
+    """The base exception for my (@Aluerie) Bot projects. All other exceptions should inherit from this.
+
+    Due to the bots' nature of interacting with - it needs to interact with its users.
+    Exactly for this purpose, this class has various attributes that control how error handlers are supposed
+    to handle such exceptions.
+
+    Attributes
+    ----------
+    respond: bool = True
+        Whether the bot should respond with message text to the chatters.
+    dev_message: str = ""
+        If not empty - the bot will send a notification message for the developers.
+    silent: bool = False
+        Whether the bot's error handlers should silently ignore this error.
+        If this flag is True then the bot won't care about any other attributes of the error -
+        it will be ignored by the error handler.
+    register: bool = False
+        Whether a notification with a full report about the error should be registered.
+        These reports are sent in my private discord so I can look at them in a great detail.
+    **debug_data_kwargs: Any
+        If `.dev_message` is not empty - the bot will attach this data to the mentioned above message for the developers.
+
+    """
+
+    def __init__(
+        self,
+        msg: str,
+        *,
+        respond: bool = True,
+        dev_message: str = "",
+        silent: bool = False,
+        register: bool = False,
+        **debug_data_kwargs: Any,
+    ) -> None:
+        super().__init__(msg)
+        self.msg: str = msg
+        self.respond: bool = respond
+        self.dev_message: str = dev_message
+        self.silent: bool = silent
+        self.register: bool = register
+        self.debug_data: dict[str, Any] = debug_data_kwargs
+
+    def formatted_message_for_devs(self) -> str:
+        """Formatted message to send to devs via a discord webhook."""
+        return f"{self.dev_message}\n{fmt.pformat_dict(self.debug_data) if self.debug_data else ''}"
 
 
-class SilentError(CustomError):
-    """Errors to be ignored by error handlers."""
+class NotAllowedError(BotError):
+    """Raised when a user is not allowed to use the requested functionality."""
 
 
-class RespondWithError(CustomError):
+class BadUserInputError(BotError):
+    """Error indicating there was a problem with user input."""
+
+
+class RespondWithError(BotError):
     """Error class for which Error Handler should just send the message back into the context.
 
     Not an error per se (at least not always), but useful when we have a known exceptional situation
@@ -48,30 +97,58 @@ class RespondWithError(CustomError):
     """
 
 
-class RespondAndNotifyDevsError(CustomError):
-    """."""
-
-    def __init__(self, msg: str, for_devs: str | None = None, **kwargs: Any) -> None:
-        self.for_devs: str = for_devs or msg
-        self.debug_data: dict[str, Any] = kwargs
-        super().__init__(msg)
-
-
-class SomethingWentWrongError(CustomError):
+class SomethingWentWrongError(BotError):
     """Placeholder Error for "Something went wrong" moments.
 
     An error type I mostly use for the debugging purposes in places I'm not sure what to do about.
     Can attach some debug data into `.data` attribute for more debugging information.
     """
 
-    def __init__(self, msg: str, **kwargs: Any) -> None:
-        self.debug_data: dict[str, Any] = kwargs
-        super().__init__(msg)
+    def __init__(self, msg: str, **debug_data_kwargs: Any) -> None:
+        super().__init__(msg, register=True, **debug_data_kwargs)
 
 
 ########################################
-# Other #
+# ERRORS CONTROLLING RESPONSE BEHAVIOR #
 ########################################
+
+
+# class SilentError(CustomError):
+#     """Errors to be ignored by error handlers."""
+
+
+# class RespondWithError(CustomError):
+#     """Error class for which Error Handler should just send the message back into the context.
+
+#     Not an error per se (at least not always), but useful when we have a known exceptional situation
+#     that requires an early exit but still with a command response.
+#     """
+
+
+# class RespondAndNotifyDevsError(CustomError):
+#     """."""
+
+#     def __init__(self, msg: str, for_devs: str | None = None, **kwargs: Any) -> None:
+#         self.for_devs: str = for_devs or msg
+#         self.debug_data: dict[str, Any] = kwargs
+#         super().__init__(msg)
+
+
+# class SomethingWentWrongError(CustomError):
+#     """Placeholder Error for "Something went wrong" moments.
+
+#     An error type I mostly use for the debugging purposes in places I'm not sure what to do about.
+#     Can attach some debug data into `.data` attribute for more debugging information.
+#     """
+
+#     def __init__(self, msg: str, **kwargs: Any) -> None:
+#         self.debug_data: dict[str, Any] = kwargs
+#         super().__init__(msg)
+
+
+# ########################################
+# # Other #
+# ########################################
 
 
 class APIDataError(CustomError):
@@ -94,22 +171,22 @@ class APIDataError(CustomError):
         super().__init__(message)
 
 
-class UnsatisfyingResultError(CustomError):
-    """Error indicating that the result of operation was unsatisfying.
+# class UnsatisfyingResultError(CustomError):
+#     """Error indicating that the result of operation was unsatisfying.
 
-    Useful for API calls where the response was correct, but, for example,
-    some conditions were not met.
-    """
-
-
-class BadUserInputError(RespondWithError):
-    """Error indicating there was a problem with user input."""
+#     Useful for API calls where the response was correct, but, for example,
+#     some conditions were not met.
+#     """
 
 
-class ResponseNotOK(CustomError):  # noqa: N818
-    """Raised when `aiohttp`'s session response is not OK.
+# class BadUserInputError(RespondWithError):
+#     """Error indicating there was a problem with user input."""
 
-    Sometimes we just specifically need to raise an error in those cases
-    when response from `self.bot.session.get(url)` is not OK.
-    I.e. Cache Updates.
-    """
+
+# class ResponseNotOK(CustomError):  # noqa: N818
+#     """Raised when `aiohttp`'s session response is not OK.
+
+#     Sometimes we just specifically need to raise an error in those cases
+#     when response from `self.bot.session.get(url)` is not OK.
+#     I.e. Cache Updates.
+#     """

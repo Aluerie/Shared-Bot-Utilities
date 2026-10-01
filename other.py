@@ -34,7 +34,6 @@ class _MissingSentinel:
         return "..."
 
 
-# TODO: I think python 3.15 provides a natural solution to this?
 MISSING: Any = _MissingSentinel()
 
 

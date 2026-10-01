@@ -18,10 +18,8 @@ from typing import TYPE_CHECKING, Any
 import orjson
 from aiohttp import ClientSession
 
-from shared import errors, fmt
-
-from .constants import EMOTE, STV_REQUEST_TIMEOUT
-from .exceptions import InvokeQueryError
+from . import exceptions
+from .constants import STV_REQUEST_TIMEOUT
 from .models import Emote, PartialEmote, PartialEmoteSet, PartialUser
 
 if TYPE_CHECKING:
@@ -114,18 +112,18 @@ class GraphQL7TVClient:
                 if response.ok:
                     gql_json = await response.json(loads=orjson.loads)
                 else:
-                    msg = f"7TV is unavailable/lagging/down {EMOTE}"
+                    msg = "7TV is unavailable/lagging/down"
                     log.warning(
-                        "7TV response to %s was not ok. Status: %s\nText:\n%s",
+                        "7TV response to %s was not ok. Status: %s Text:\n%s",
                         query_name,
                         response.status,
-                        fmt.codeblock(await response.text()),
+                        await response.text(),
                     )
-                    raise errors.RespondWithError(msg) from None
+                    raise exceptions.ServiceError(msg) from None
 
         except TimeoutError:
-            msg = f"7TV didn't respond to me in time; try again later? {EMOTE}"
-            raise errors.RespondWithError(msg) from None
+            msg = "7TV is lagging, it didn't respond in time; try again later?"
+            raise exceptions.ServiceError(msg) from None
 
         match gql_json:
             case {"data": data} if data:
@@ -135,7 +133,7 @@ class GraphQL7TVClient:
                 # This way we are only raising error corresponding to the first error in the gql_json
                 # but we are okay with that, I think.
                 extensions = error.get("extensions", {})
-                raise InvokeQueryError(
+                raise exceptions.InvokeQueryError(
                     status=extensions.get("status", "???"),
                     message=error.get("message", ""),
                     code=extensions.get("code", "UNKNOWN_CODE"),
@@ -143,14 +141,11 @@ class GraphQL7TVClient:
             case {"status": status} if status == "Unauthorized":
                 # If bearer token expired -
                 # 7TV sends {'status': 'Unauthorized', 'error_code': 1000, 'error': 'invalid session'}
-                msg = (
-                    "I am not unauthorized to do this - 7TV logged me out; Irene will fix it (surely permanently this time)"
-                )
-                for_devs = "The bot's 7TV Bearer Token is expired."
-                raise errors.RespondAndNotifyDevsError(msg, for_devs, gql_json=gql_json)
+                msg = "Ooups, 7TV logged me out; Irene needs to fix it (surely permanently this time)"
+                raise exceptions.UnauthorizedError(msg, gql_json=gql_json)
             case _:
                 msg = "Something went wrong"
-                raise errors.SomethingWentWrongError(msg, data=gql_json)
+                raise exceptions.SomethingWentWrongError(msg, gql_json=gql_json)
 
     def create_partial_emote(self, emote_id: str) -> PartialEmote:
         """Create partial emote."""
@@ -193,8 +188,8 @@ query TopSearchByEmoteName($emoteName: String) {
         try:
             return PartialEmote(self, emote_id=emote_items[index]["id"])
         except IndexError:
-            msg = f"Result search doesn't have that many emotes (only one {len(res)})"
-            raise errors.RespondWithError(msg) from None
+            msg = f"Search result doesn't have that many emotes (only {len(res)} total)"
+            raise exceptions.EmoteNotFoundError(msg) from None
 
     async def fetch_emote(self, emote_id: str) -> Emote:
         """
