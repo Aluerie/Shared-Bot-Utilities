@@ -26,8 +26,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import fmt
-
 
 class CustomError(Exception):
     """The base exception for my (@Aluerie) projects. All other exceptions should inherit from this."""
@@ -42,19 +40,20 @@ class BotError(CustomError):
 
     Attributes
     ----------
+    msg: str
+        Message to initiate the exception with.
     respond: bool = True
-        Whether the bot should respond with message text to the chatters.
-    dev_message: str = ""
-        If not empty - the bot will send a notification message for the developers.
+        Whether the bot should respond in twitch chat.
+    chat_message: str = ""
+        The message to send to twitch chat if `.respond` is True. If not provided then exception `msg` is used instead.
     silent: bool = False
         Whether the bot's error handlers should silently ignore this error.
-        If this flag is True then the bot won't care about any other attributes of the error -
-        it will be ignored by the error handler.
+        If this flag is True then the bot won't care about any other attributes - just silence.
     register: bool = False
-        Whether a notification with a full report about the error should be registered.
+        Whether a notification with a full report for the developers about the error should be registered.
         These reports are sent in my private discord so I can look at them in a great detail.
     **debug_data_kwargs: Any
-        If `.dev_message` is not empty - the bot will attach this data to the mentioned above message for the developers.
+        If any are provided - the bot will attach this data to the mentioned above message for the developers.
 
     """
 
@@ -63,7 +62,7 @@ class BotError(CustomError):
         msg: str,
         *,
         respond: bool = True,
-        dev_message: str = "",
+        chat_message: str = "",
         silent: bool = False,
         register: bool = False,
         **debug_data_kwargs: Any,
@@ -71,14 +70,9 @@ class BotError(CustomError):
         super().__init__(msg)
         self.msg: str = msg
         self.respond: bool = respond
-        self.dev_message: str = dev_message
         self.silent: bool = silent
         self.register: bool = register
         self.debug_data: dict[str, Any] = debug_data_kwargs
-
-    def formatted_message_for_devs(self) -> str:
-        """Formatted message to send to devs via a discord webhook."""
-        return f"{self.dev_message}\n{fmt.pformat_dict(self.debug_data) if self.debug_data else ''}"
 
 
 class NotAllowedError(BotError):
@@ -183,7 +177,7 @@ class APIDataError(CustomError):
 #     """Error indicating there was a problem with user input."""
 
 
-# class ResponseNotOK(CustomError):  # noqa: N818
+# class ResponseNotOK(CustomError):
 #     """Raised when `aiohttp`'s session response is not OK.
 
 #     Sometimes we just specifically need to raise an error in those cases

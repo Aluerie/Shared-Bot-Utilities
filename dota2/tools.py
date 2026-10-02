@@ -238,7 +238,7 @@ def is_allowed_to_add_notable() -> Any:
         if ctx.chatter.id in allowed_ids:
             return True
         msg = f"You are not allowed to add notable players into the bot's database {const.FFZ.peepoPolice}"
-        raise errors.RespondWithError(msg)
+        raise errors.NotAllowedError(msg)
 
     return commands.guard(predicate)
 
