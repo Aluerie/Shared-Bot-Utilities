@@ -2,16 +2,18 @@
 
 Sources
 -------
-*  `fuzzy.py` file from RoboDanny (license MPL v2 from Rapptz/RoboDanny)
+Robodanny:
+    `fuzzy.py` file from RoboDanny (MPL v2 license)
     https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/utils/fuzzy.py
-* Helpful article:
+Seatgeek:
     http://chairnerd.seatgeek.com/fuzzywuzzy-fuzzy-string-matching-in-python/
+    https://github.com/seatgeek/thefuzz (MIT license)
+    (but in my testing that library is slower than the code here, not really sure why).
 
-Notes
------
-* Unfortunately, Danny didn't make doc-strings for the functions in here so I mostly cross-checked with
-    https://github.com/seatgeek/thefuzz concepts and ideas, which are somewhat the same
-    (but in my testing that library is slower than the code here, not sure why).
+License
+-------
+* License: MPL-2.0, see LICENSE for more details.
+* Copyright: (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations

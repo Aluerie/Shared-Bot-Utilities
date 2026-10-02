@@ -3,8 +3,8 @@ Formatting utilities.
 
 License
 -------
-* This Source Code Form is subject to the terms of the [Mozilla Public License v2.0](<http://mozilla.org/MPL/2.0/>).
-* Copyright (C) 2020-present [@Aluerie](<https://github.com/Aluerie>).
+* License: MPL-2.0, see LICENSE for more details.
+* Copyright: (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations
@@ -53,12 +53,11 @@ CODE_LANGUAGES = [
 
 
 def codeblock(text: str, language: str = "py") -> str:
-    """Wrap text into a Python triple "`" discord codeblock.
+    """Wrap text into a triple "`" discord codeblock.
 
-    It's just annoying to type sometimes. Also shorter like this.
     For no code version we can just use `language=""`.
 
-    For languages codes supported by Discord you can look the variable `fmt.CODE_LANGUAGES`.
+    You can check which languages are supported in Discord by looking at the `fmt.CODE_LANGUAGES` constant.
     """
     return f"```{language}\n{text}```"
 
