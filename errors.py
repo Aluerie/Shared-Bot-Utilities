@@ -44,8 +44,9 @@ class BotError(CustomError):
         Message to initiate the exception with.
     respond: bool = True
         Whether the bot should respond in twitch chat.
-    chat_message: str = ""
-        The message to send to twitch chat if `.respond` is True. If not provided then exception `msg` is used instead.
+    something_went_wrong: bool = False
+        Whether to use `msg` as a response or prepared "Oups, something went wrong" message.
+        Useful for when we want to hide the error from the user.
     silent: bool = False
         Whether the bot's error handlers should silently ignore this error.
         If this flag is True then the bot won't care about any other attributes - just silence.
@@ -62,6 +63,7 @@ class BotError(CustomError):
         msg: str,
         *,
         respond: bool = True,
+        something_went_wrong: bool = False,
         silent: bool = False,
         register: bool = False,
         **debug_data_kwargs: Any,
@@ -69,6 +71,7 @@ class BotError(CustomError):
         super().__init__(msg)
         self.msg: str = msg
         self.respond: bool = respond
+        self.something_went_wrong = something_went_wrong
         self.silent: bool = silent
         self.register: bool = register
         self.debug_data: dict[str, Any] = debug_data_kwargs
