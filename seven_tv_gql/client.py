@@ -1,5 +1,4 @@
-"""
-Seven TV Client.
+"""Seven TV Client.
 
 License
 -------
@@ -90,11 +89,6 @@ class GraphQL7TVClient:
         -------
         dict[str, Any]
             GraphQL json dictionary from the response. Usually heavily nested.
-
-        Raises
-        ------
-        GraphQLResponseError
-            If API json response contains `errors` field then `GraphQLResponseError` is raised with its content.
         """
         match = re.search(r"^\s*(?:query|mutation)\s+(?P<query_name>\w+)\s*(?:\(|\{)", query)
         query_name = match.group("query_name") if match else "UnknownQuery"
@@ -120,7 +114,6 @@ class GraphQL7TVClient:
                         await response.text(),
                     )
                     raise exceptions.ServiceError(msg) from None
-
         except TimeoutError:
             msg = "7TV is lagging, it didn't respond in time; try again later?"
             raise exceptions.ServiceError(msg) from None
@@ -192,8 +185,7 @@ query TopSearchByEmoteName($emoteName: String) {
             raise exceptions.EmoteNotFoundError(msg) from None
 
     async def fetch_emote(self, emote_id: str) -> Emote:
-        """
-        Get defaultName for an emote.
+        """Get defaultName for an emote.
 
         Parameters
         ----------

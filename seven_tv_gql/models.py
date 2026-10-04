@@ -1,8 +1,14 @@
+"""7TV Models.
+
+Notices
+-------
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal, NamedTuple, NotRequired, TypedDict, cast, override
-
-from shared.types_.seven_tv import GetUserEditors
 
 from . import exceptions
 from .constants import COMMON_WORDS, EMOTE_SET_EMOTES_CAPACITY_LIMIT
@@ -29,7 +35,7 @@ if TYPE_CHECKING:
         emoteSetId: str
         emoteIdWithAlias: EmoteIdWithAlias
 
-    from ..types_.seven_tv import GetUserEditors, GUEEditors
+    from shared.types_.seven_tv import GetUserEditors, GUEEditors
 
 
 __all__ = (
@@ -89,7 +95,7 @@ class PartialEmote:
                     }
                 }
             }
-            """  # noqa: UP031
+            """  # ruff: ignore[printf-string-formatting]
             % (COMMON_EMOTE_SUB_QUERY),
             variables={
                 "emoteId": self.id,
@@ -178,13 +184,10 @@ query EmotesInSet($id: Id!, $query: String, $page: Int!, $perPage: Int!) {
         ]
 
     async def fetch_emote_alias(self, emote_id: str) -> str:
-        """
-        Get emote's alias in the emote alias.
+        """Get emote's alias in the emote alias.
 
         Parameters
         ----------
-        emote_set_id: str
-            7TV emote set where we will search for the emote.
         emote_id: str
             7TV emote id.
 
@@ -216,21 +219,13 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
             raise exceptions.EmoteNotFoundError(msg)
         return emote["alias"]
 
-    async def remove_emote(self, emote_id: str) -> PartialEmote:
-        """
-        Remove an emote from the emote set.
+    async def remove_emote(self, emote_id: str) -> None:
+        """Remove an emote from the emote set.
 
         Parameters
         ----------
-        broadcaster_id: str
-            Twitch ID for the broadcaster.
-        emote_name: str
-            Emote name to query against.
-
-        Returns
-        -------
-        str
-            `emote_set_id`, which is pretty illogical and not useful.
+        emote_id: str
+            Emote ID of the emote to remove.
         """
         query: str = """
         mutation EmoteSetRemoveEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!) {
@@ -250,14 +245,12 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
             },
         }
         try:
-            res = await self._client.invoke(query, variables=variables)
+            await self._client.invoke(query, variables=variables)
         except exceptions.InvokeQueryError as error:
             if error.message == "BAD_REQUEST emote not found in set":
                 msg = "Emote was not found in set"
                 raise exceptions.EmoteNotFoundError(msg) from None
             raise
-
-        return PartialEmote(self._client, res["emoteSets"]["emoteSet"]["removeEmote"]["id"])
 
     async def validate_emote_alias_not_a_common_word(
         self,
@@ -267,7 +260,7 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
         allow_common_words: bool = True,
     ) -> None:
         """Validate if emote_alias is not a common word."""
-        if allow_common_words:  # and not blacklisted_words:
+        if allow_common_words:
             return
 
         if emote_alias is None:
@@ -284,9 +277,8 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
         *,
         emote_alias: str | None = None,
         allow_common_words: bool = True,
-    ) -> PartialEmote:
-        """
-        Add an emote to a 7TV emote set.
+    ) -> None:
+        """Add an emote to a 7TV emote set.
 
         Parameters
         ----------
@@ -294,11 +286,8 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
             7TV emote id.
         emote_alias: str | None = None
             If provided then the emote will be added with an alias.
-
-        Returns
-        -------
-        str
-            `emote_set_id`, which is pretty illogical and not useful.
+        allow_common_words: bool = True
+            Whether to reject usage of common words as emote_alias or emote name.
         """
         await self.validate_emote_alias_not_a_common_word(emote_id, emote_alias, allow_common_words=allow_common_words)
 
@@ -311,13 +300,14 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
       }
     }
   }
-}"""
+}
+"""
         variables = {
             "emoteSetId": self.id,
             "emoteIdWithAlias": {"emoteId": emote_id, "alias": emote_alias},
         }
         try:
-            res = await self._client.invoke(query, variables)
+            await self._client.invoke(query, variables)
         except exceptions.InvokeQueryError as error:
             match error.message:
                 case "BAD_REQUEST this emote has a conflicting name":
@@ -339,8 +329,6 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
                 case _:
                     raise
 
-        return PartialEmote(self._client, res["emoteSets"]["emoteSet"]["addEmote"]["id"])
-
     async def rename_emote(
         self,
         emote_id: str,
@@ -348,7 +336,7 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
         new_emote_alias: str,
         old_emote_alias: str | None = None,
         allow_common_words: bool = True,
-    ) -> PartialEmote:
+    ) -> None:
         """Rename 7tv emote."""
         await self.validate_emote_alias_not_a_common_word(emote_id, new_emote_alias, allow_common_words=allow_common_words)
 
@@ -368,7 +356,7 @@ mutation EmoteSetRenameEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteI
             "new_name": new_emote_alias,
         }
         try:
-            res = await self._client.invoke(query, variables)
+            await self._client.invoke(query, variables)
         except exceptions.InvokeQueryError as error:
             match error.message:
                 case "BAD_REQUEST emote name conflict":
@@ -382,7 +370,6 @@ mutation EmoteSetRenameEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteI
                     raise exceptions.InvalidEmoteAliasError(msg) from None
                 case _:
                     raise
-        return PartialEmote(self._client, res["emoteSets"]["emoteSet"]["updateEmoteAlias"]["id"])
 
     async def fetch_info(self) -> EmoteSetInfo:
         """Fetch 7TV Emote Set Info."""
@@ -430,8 +417,6 @@ class PartialUser:
 
         Parameters
         ----------
-        broadcaster_id: str
-            Twitch ID for the broadcaster.
         emote_name: str
             Emote name to query against.
 
@@ -499,13 +484,11 @@ query GetUserEditors($platformId: String!) {
             ),
         )
         bot_editor = next(
-            iter(
-                [
-                    editor
-                    for editor in res["users"]["userByConnection"]["editors"]
-                    if editor["editorId"] == self._client.user_id
-                ]
-            ),
+            iter([
+                editor
+                for editor in res["users"]["userByConnection"]["editors"]
+                if editor["editorId"] == self._client.user_id
+            ]),
             None,
         )
         if bot_editor is None:
