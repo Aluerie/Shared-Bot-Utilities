@@ -86,7 +86,7 @@ class Status(SteampyStrEnum):
 
     @property
     def display_name(self) -> str:
-        """Get a chat-send friendly display name, if present."""
+        """Chat-send friendly display name, if present."""
         try:
             return self.KNOWN_DISPLAY_NAMES[self]
         except KeyError:
@@ -118,7 +118,7 @@ class ScoreCategory(Enum):
 
     @classmethod
     def create(cls, lobby_type: int, game_mode: int) -> ScoreCategory:
-        """Creates !wl command category from `lobby_type` and `game_mode`.
+        """Create !wl command category from `lobby_type` and `game_mode`.
 
         Dota Matches naturally in API data are described by those attributes.
         This allows categorizing dota matches for !wl command.

@@ -27,7 +27,8 @@ __all__ = (
 )
 
 GITMOJI_MAPPING = {
-    # I like https://gitmoji.dev/specification commit format
+    # I freaking love https://gitmoji.dev/specification commit format
+    # Even though, it's quite silly.
     # This mapping was made by doing `{g["code"]: g["emoji"] for g in GITMOJIS["gitmojis"]}` where
     # GITEMOJIS is from
     # https://github.com/carloscuesta/gitmoji/blob/master/packages/gitmojis/src/gitmojis.json

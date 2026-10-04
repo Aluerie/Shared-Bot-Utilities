@@ -21,7 +21,7 @@ __all__ = (
 )
 
 try:
-    import uvloop  # ty: ignore[unresolved-import]
+    import uvloop  # ty: ignore[unresolved-import, unused-ignore-comment, unused-ignore-comment]
 except ModuleNotFoundError:
     # WINDOWS - uvloop does not support Windows
     run = asyncio.run
