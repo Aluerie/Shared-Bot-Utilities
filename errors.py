@@ -55,7 +55,6 @@ class BotError(CustomError):
         These reports are sent in my private discord so I can look at them in a great detail.
     **debug_data_kwargs: Any
         If any are provided - the bot will attach this data to the mentioned above message for the developers.
-
     """
 
     def __init__(
@@ -71,7 +70,7 @@ class BotError(CustomError):
         super().__init__(msg)
         self.msg: str = msg
         self.respond: bool = respond
-        self.something_went_wrong = something_went_wrong
+        self.something_went_wrong: bool = something_went_wrong
         self.silent: bool = silent
         self.register: bool = register
         self.debug_data: dict[str, Any] = debug_data_kwargs
@@ -82,7 +81,7 @@ class NotAllowedError(BotError):
 
 
 class BadUserInputError(BotError):
-    """Error indicating there was a problem with user input."""
+    """Error indicating there was a problem with the user input."""
 
 
 class RespondWithError(BotError):
@@ -101,7 +100,7 @@ class SomethingWentWrongError(BotError):
     """
 
     def __init__(self, msg: str, **debug_data_kwargs: Any) -> None:
-        super().__init__(msg, register=True, **debug_data_kwargs)
+        super().__init__(msg, something_went_wrong=True, register=True, **debug_data_kwargs)
 
 
 ########################################
