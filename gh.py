@@ -131,16 +131,20 @@ class CommitInfo:
         -------
         Commit's title: ':tada: Testing' -> `.emojified_title`: '🎉 Testing'
         """
-        return re.sub(r"^(?P<emoji_code>:[\w_-]+:)", lambda mo: GITMOJI_MAPPING[mo.group("emoji_code")], self.short_title)
+        return re.sub(
+            pattern=r"^(?P<emoji_code>:[\w_-]+:)",
+            repl=lambda mo: GITMOJI_MAPPING.get(mo.group("emoji_code"), mo.group("emoji_code")),
+            string=self.short_title,
+        )
 
     @property
     def dt_as_tz(self) -> datetime.datetime:
-        """Return `self.utc_dt` (UTC commit time creation) as `.astimezone`."""
+        """Datetime `self.utc_dt` (UTC commit time creation) as `.astimezone`."""
         return self.utc_dt.astimezone(self.tz)
 
     @property
     def url(self) -> str:
-        """Get commit's url."""
+        """Commit's url."""
         if repo_url := self.repo.remotes["origin"].url:
             repo_url = repo_url.removesuffix(".git")
         return f"{repo_url}/commit/{self.id}"
