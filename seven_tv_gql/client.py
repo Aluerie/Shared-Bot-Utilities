@@ -1,9 +1,9 @@
 """Seven TV Client.
 
-License
+Notices
 -------
-* License: MPL-2.0, see LICENSE for more details.
-* Copyright: (C) 2020-present @Aluerie.
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations
@@ -24,9 +24,7 @@ from .models import Emote, PartialEmote, PartialEmoteSet, PartialUser
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from shared.types_.database import PoolTypedWithAny
-
-    from ..types_ import seven_tv as stv_types
+    from shared.types_ import seven_tv as stv_types
 
 
 __all__ = ("GraphQL7TVClient",)
@@ -65,14 +63,12 @@ class GraphQL7TVClient:
     def __init__(
         self,
         *,
-        pool: PoolTypedWithAny,
         bot_7tv_user_id: str,
         bearer_token: str | None = None,
     ) -> None:
         self._bearer_token = bearer_token
         self.user_id: str = bot_7tv_user_id
         self.session = ClientSession()
-        self.pool = pool
 
     async def invoke(self, query: str, variables: Mapping[str, Any]) -> Any:
         """Invoke a request to 7TV GraphQL API.
