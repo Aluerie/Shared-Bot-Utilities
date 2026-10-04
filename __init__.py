@@ -11,7 +11,6 @@ Notices
 from . import (
     clock as clock,
     concepts as concepts,
-    dota2 as dota2,
     errors as errors,
     fmt as fmt,
     fuzzy as fuzzy,

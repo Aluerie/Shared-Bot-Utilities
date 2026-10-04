@@ -9,24 +9,19 @@ from discord.ext import tasks
 from discord.utils import MISSING
 
 if TYPE_CHECKING:
-    import datetime
-
-    from core import IreBot
-
-    class HasBotAttribute(Protocol):
-        bot: IreBot
+    import datetime as dt
 
 
 log = logging.getLogger(__name__)
 
-__all__ = ("CustomLoop", "custom_loop")
+__all__ = ("Loop", "loop")
 
 
 _func = Callable[..., Coroutine[Any, Any, Any]]
 LF = TypeVar("LF", bound=_func)
 
 
-class CustomLoop(tasks.Loop[LF]):
+class Loop(tasks.Loop[LF]):
     """My subclass for discord.ext.tasks.Loop.
 
     Just extra boilerplate functionality.
@@ -44,7 +39,7 @@ class CustomLoop(tasks.Loop[LF]):
         seconds: float,
         hours: float,
         minutes: float,
-        time: datetime.time | Sequence[datetime.time],
+        time: dt.time | Sequence[dt.time],
         count: int | None,
         *,
         reconnect: bool,
@@ -64,17 +59,17 @@ class CustomLoop(tasks.Loop[LF]):
 
 
 @discord.utils.copy_doc(tasks.loop)
-def custom_loop(
+def loop(
     *,
     seconds: float = MISSING,
     minutes: float = MISSING,
     hours: float = MISSING,
-    time: datetime.time | Sequence[datetime.time] = MISSING,
+    time: dt.time | Sequence[dt.time] = MISSING,
     count: int | None = None,
     reconnect: bool = True,
     name: str | None = None,
     wait_for_ready: bool = False,
-) -> Callable[[LF], CustomLoop[LF]]:
+) -> Callable[[LF], Loop[LF]]:
     """Copy-pasted `loop` decorator from `discord.ext.tasks` corresponding to AluLoop class.
 
     Notes
@@ -84,9 +79,9 @@ def custom_loop(
 
     """
 
-    def decorator(func: LF) -> CustomLoop[LF]:
-        return CustomLoop(
-            func,
+    def decorator(func: LF) -> Loop[LF]:
+        return Loop(
+            coro=func,
             seconds=seconds,
             minutes=minutes,
             hours=hours,
