@@ -1,10 +1,9 @@
-"""
-Formatting utilities.
+"""Formatting utilities.
 
-License
+Notices
 -------
-* License: MPL-2.0, see LICENSE for more details.
-* Copyright: (C) 2020-present @Aluerie.
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations
@@ -65,9 +64,12 @@ def codeblock(text: str, language: str = "py") -> str:
 def pformat_dict(data: dict[str, Any]) -> str:
     """Pformat Kwarg or dictionaries (mainly for the discord messages)."""
     return codeblock(
-        "\n".join(f"[{name}]: {pprint.pformat(repr(value), indent=4)}" for name, value in data.items())
-        if data
-        else "No arguments"
+        text=(
+            "\n".join(f"{name}={pprint.pformat(repr(value), indent=4)}" for name, value in data.items())
+            if data
+            else "No arguments"
+        ),
+        language="toml",
     )
 
 
@@ -84,7 +86,7 @@ def ordinal(n: int | str) -> str:
     return str(n) + suffix
 
 
-class plural:  # noqa: N801
+class plural:  # ruff: ignore[invalid-class-name]
     """Helper class to format tricky number + singular/plural noun situations.
 
     Returns a human-readable string combining number and a proper noun.

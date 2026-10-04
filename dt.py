@@ -1,21 +1,20 @@
-"""
-Datetime utilities.
+"""Datetime utilities.
 
-License
+Notices
 -------
-* License: MPL-2.0, see LICENSE for more details.
-* Copyright: (C) 2020-present @Aluerie.
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
 """
 
-import datetime
+import datetime as dt
 
 
-def utcnow() -> datetime.datetime:
-    """A helper function to return an aware UTC datetime representing the current time.
+def utcnow() -> dt.datetime:
+    """Get an aware UTC dt.datetime representing the current time.
 
     Returns
     -------
-    datetime.datetime
+    dt.datetime
         The current aware datetime in UTC.
     """
-    return datetime.datetime.now(datetime.UTC)
+    return dt.datetime.now(dt.UTC)

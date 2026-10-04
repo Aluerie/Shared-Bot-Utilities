@@ -16,10 +16,10 @@ Their type depends on whether the developers should also be notified.
 | SomethingWentWrongError   | Yes, but with 'Something Went Wrong' | Yes            |
 | Other Exception Types     | Depends - look into Error Handlers   | Depends        |
 
-License
+Notices
 -------
-* License: MPL-2.0, see LICENSE for more details.
-* Copyright: (C) 2020-present @Aluerie.
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations
@@ -160,6 +160,7 @@ class APIDataError(CustomError):
     ----------
     data: Any | None
         Any data that API attached to the response.
+
     """
 
     def __init__(self, message: str, data: Any | None = None) -> None:

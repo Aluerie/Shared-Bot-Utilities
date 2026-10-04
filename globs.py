@@ -1,14 +1,13 @@
-"""
-Global Shared Constants.
+"""Global Shared Constants.
 
 Terrible module name but I've already have a bunch of "constants.py", "const.py" files.
 So idk.
 Maybe I will think of a better name in future.
 
-License
+Notices
 -------
-* License: MPL-2.0, see LICENSE for more details.
-* Copyright: (C) 2020-present @Aluerie.
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
 """
 
 from enum import StrEnum

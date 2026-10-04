@@ -1,17 +1,15 @@
-"""
-Seven TV Wrapper.
+"""Seven TV Wrapper.
 
-This doesn't cover the whole API in any meaningful ways.
-Certainly not for PyPI (Python Package Index).
-Just a few methods and classes that this bot will be using.
+This doesn't cover the whole API in any meaningful way (certainly not good enough for PyPI).
+Just a few methods and classes that my bots might be using.
 
 In a way, it's a bit egregious as GraphQL API is not supposed to be used this way.
-But I guess it's okay to wrap it like this for some very common operations.
+But I guess it's okay to wrap a few very common operations like this.
 
-License
+Notices
 -------
-* License: MPL-2.0, see LICENSE for more details.
-* Copyright: (C) 2020-present @Aluerie.
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
 """
 
 from .client import *

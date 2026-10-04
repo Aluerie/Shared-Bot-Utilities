@@ -23,8 +23,8 @@ def setup_logging(
     *,
     starting_up_art: str,
     filename: str,
-) -> Generator[Any, Any, Any]:
-    """Setup logging."""
+) -> Generator[None, Any, Any]:
+    """Set up logging."""
     log = logging.getLogger()
     log.setLevel(logging.INFO)
 
@@ -117,7 +117,7 @@ class MyColourFormatter(logging.Formatter):
 def get_log_fmt(handler: logging.Handler) -> logging.Formatter:
     if (
         isinstance(handler, logging.StreamHandler)
-        and discord.utils.stream_supports_colour(handler.stream)  # pyright: ignore[reportUnknownMemberType]
+        and discord.utils.stream_supports_colour(handler.stream)
         and not isinstance(handler, RotatingFileHandler)
     ):  # force file handler fmt into `else`
         formatter = MyColourFormatter()

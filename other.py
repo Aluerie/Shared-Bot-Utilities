@@ -1,15 +1,34 @@
-"""Helpers.
+"""Other uncategorized helpers.
 
 Some utilities that I could not categorize anywhere really.
+
+Notices
+-------
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from time import perf_counter
 from typing import Any, Self, override
 
-__all__ = ("measure_time",)
+__all__ = (
+    "measure_time",
+    "run",
+)
+
+try:
+    import uvloop  # ty: ignore[unresolved-import]
+except ModuleNotFoundError:
+    # WINDOWS - uvloop does not support Windows
+    run = asyncio.run
+else:
+    # LINUX
+    run = uvloop.run
+
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
@@ -37,7 +56,7 @@ class _MissingSentinel:
 MISSING: Any = _MissingSentinel()
 
 
-class measure_time:  # noqa: N801 # it's fine to call classes lowercase if they aren't used as actual classes per PEP-8.
+class measure_time:  # ruff: ignore[invalid-class-name]
     """Measure performance time of a context'ed codeblock.
 
     Example:

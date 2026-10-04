@@ -1,3 +1,11 @@
+"""Database.
+
+Notices
+-------
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, override
@@ -6,7 +14,7 @@ import asyncpg
 import orjson
 
 
-async def create_pool(postgres_url: str) -> asyncpg.Pool[asyncpg.Record]:
+async def create_pool(postgres_url: str) -> PoolTypedWithAny:
     """Create a database connection pool.
 
     Parameters
@@ -31,13 +39,13 @@ async def create_pool(postgres_url: str) -> asyncpg.Pool[asyncpg.Record]:
         )
 
     return await asyncpg.create_pool(
-        postgres_url,
+        dsn=postgres_url,
         init=init,
         command_timeout=300,
         min_size=20,
         max_size=20,
         # statement_cache_size=0,
-    )
+    )  # ty: ignore[invalid-return-type]
 
 
 if TYPE_CHECKING:
@@ -59,7 +67,7 @@ if TYPE_CHECKING:
         # all methods below were changed from "asyncpg.Record" to "Any"
 
         @override
-        async def fetch(self, query: str, *args: Any, timeout: float | None = None) -> list[Any]: ...  # pyright: ignore[reportIncompatibleMethodOverride]
+        async def fetch(self, query: str, *args: Any, timeout: float | None = None) -> list[Any]: ...  # ty: ignore[invalid-method-override]
 
         @override
-        async def fetchrow(self, query: str, *args: Any, timeout: float | None = None) -> Any: ...  # pyright: ignore[reportIncompatibleMethodOverride]
+        async def fetchrow(self, query: str, *args: Any, timeout: float | None = None) -> Any: ...  # ty: ignore[invalid-method-override]

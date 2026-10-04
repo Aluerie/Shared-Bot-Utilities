@@ -1,12 +1,11 @@
-"""
-Shared Bot Utilities.
+"""Shared Bot Utilities.
 
 This package contains a bunch of utilities, helpers, small API wrappers that I use for some of my projects.
 
-License
+Notices
 -------
-* License: MPL-2.0, see LICENSE for more details.
-* Copyright: (C) 2020-present @Aluerie.
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
 """
 
 from . import (

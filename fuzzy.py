@@ -10,10 +10,10 @@ Seatgeek:
     https://github.com/seatgeek/thefuzz (MIT license)
     (but in my testing that library is slower than the code here, not really sure why).
 
-License
+Notices
 -------
-* License: MPL-2.0, see LICENSE for more details.
-* Copyright: (C) 2020-present @Aluerie.
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations
@@ -171,8 +171,8 @@ def extract[T](
     """
     it = _extraction_generator(query, choices, scorer, score_cutoff)
     if limit is not None:
-        return heapq.nlargest(limit, it, key=operator.itemgetter(1))  # pyright: ignore[reportReturnType]
-    return sorted(it, key=operator.itemgetter(1), reverse=True)  # pyright: ignore[reportReturnType]
+        return heapq.nlargest(limit, it, key=operator.itemgetter(1))  # ty: ignore[invalid-return-type]
+    return sorted(it, key=operator.itemgetter(1), reverse=True)  # ty: ignore[invalid-return-type]
 
 
 @overload
@@ -202,7 +202,7 @@ def extract_one[T](
     it = _extraction_generator(query, choices, scorer, score_cutoff)
     try:
         return max(it, key=operator.itemgetter(1))
-    except:  # noqa: E722
+    except:  # ruff: ignore[bare-except]
         # iterator could return nothing
         return None
 
@@ -258,7 +258,7 @@ def extract_or_exact[T](
 
     # check if the top one is exact or more than 30% more correct than the top
     if top == 100 or top > (second + 30):
-        return [matches[0]]  # pyright: ignore[reportReturnType]
+        return [matches[0]]  # ty: ignore[invalid-return-type]
 
     return matches
 
@@ -307,7 +307,7 @@ def extract_top_matches[T](
 
         # a = list[str] | list[int] ; a.append(b) esque-problem
         # type-hinter can't understand that `b` is always going to be of the same type
-        to_return.append(match)  # pyright: ignore[reportArgumentType]
+        to_return.append(match)  # ty: ignore[invalid-argument-type]
     return to_return
 
 

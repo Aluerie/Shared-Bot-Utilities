@@ -1,10 +1,9 @@
-"""
-Git, GitHub and some file/code counting Utilities.
+"""Git, GitHub and some file/code counting Utilities.
 
-License
+Notices
 -------
-* License: MPL-2.0, see LICENSE for more details.
-* Copyright: (C) 2020-present @Aluerie.
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations
@@ -124,7 +123,9 @@ class CommitInfo:
 
     @property
     def emojified_title(self) -> str | None:
-        """Return the commit's short title but replace :gitmoji: with a corresponding unicode character if present.
+        """Emojified commit's short title.
+
+        If title contains ":some_emoji_name:" then this replaces it with a corresponding unicode character (from gitmojis).
 
         Example
         -------
