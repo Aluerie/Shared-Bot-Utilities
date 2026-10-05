@@ -146,19 +146,15 @@ class SomethingWentWrongError(BotError):
 # ########################################
 
 
-class APIDataError(CustomError):
-    """API Data Error.
+class ApiError(CustomError):
+    """Api Error.
 
-    This error is raised when 3rd party API returns a response indicating
-    that there was some error.
-
-    Useful for API like GraphQL which like to put an error message into its data responses, i.e.
-    `{data: {"error": "There was an error"}}`.
+    This error is raised when there is a problem with a 3rd party API.
 
     Attributes
     ----------
     data: Any | None
-        Any data that API attached to the response.
+        Data that API attached to the response, if any.
 
     """
 
