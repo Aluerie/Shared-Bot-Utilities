@@ -2,8 +2,8 @@
 
 License
 -------
-* License: MPL-2.0, see LICENSE for more details.
-* Copyright: (C) 2020-present @Aluerie.
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from shared import errors
 if TYPE_CHECKING:
     import aiohttp
 
-    from types_ import steam_web_api as schemas
+    from shared.types_ import steam_web_api as schemas
 
     class GraphQLData(TypedDict):
         data: Any
