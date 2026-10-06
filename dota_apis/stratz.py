@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 import orjson
 
+from shared import errors
+
 if TYPE_CHECKING:
     import aiohttp
     from aiohttp.client import ClientSession
@@ -50,7 +52,7 @@ class StratzClient:
                 return graphql_json["data"]
             except KeyError:
                 msg = "Stratz GraphQL API Error:"
-                raise errors.APIDataError(msg, graphql_json) from None
+                raise errors.ApiError(msg, graphql_json) from None
 
     async def get_items(self) -> list[schemas.Item]:
         """Get Constants for Dota 2 Items."""
