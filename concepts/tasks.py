@@ -1,8 +1,16 @@
+"""Tasks.
+
+Notices
+-------
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
+"""
+
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Coroutine, Sequence
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import discord
 from discord.ext import tasks

@@ -1,3 +1,11 @@
+"""Bot Base.
+
+Notices
+-------
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -9,6 +17,8 @@ if TYPE_CHECKING:
 
 
 class BotBase:
+    """Bot Base."""
+
     def __init__(self, session: aiohttp.ClientSession, error_webhook_url: str, error_ping: str) -> None:
         self.session: aiohttp.ClientSession = session
         self._error_webhook_url: str = error_webhook_url

@@ -1,3 +1,11 @@
+"""Logging Setup.
+
+Notices
+-------
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -119,7 +127,8 @@ def get_log_fmt(handler: logging.Handler) -> logging.Formatter:
         isinstance(handler, logging.StreamHandler)
         and discord.utils.stream_supports_colour(handler.stream)
         and not isinstance(handler, RotatingFileHandler)
-    ):  # force file handler fmt into `else`
+    ):
+        # supports color
         formatter = MyColourFormatter()
     else:
         formatter = logging.Formatter(
