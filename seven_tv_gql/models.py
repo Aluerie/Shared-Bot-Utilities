@@ -561,6 +561,31 @@ mutation UpdateEditorState($userId: Id!, $editorId: Id!, $state: UserEditorUpdat
 
         return res["userEditors"]["editor"]["updateState"]["state"]
 
+    async def get_stv_mods(self) -> list[dict[str, str]]:
+        """Get 7TV editors."""
+        query = """
+query Get7TVMods($platformId: String!) {
+  users {
+    userByConnection(platform: TWITCH, platformId: $platformId) {
+      editors {
+        editorId
+        state
+        editor {
+          mainConnection {
+            platform
+            platformId
+            platformDisplayName
+          }
+        }
+      }
+    }
+  }
+}
+        """
+        variables = {"platformId": self.twitch_id}
+        res = await self._client.invoke(query, variables)
+        return [editor["editor"]["mainConnection"] for editor in res["users"]["userByConnection"]["editors"]]
+
 
 class EditorCheck:
     def __init__(self, payload: GUEEditors) -> None:
