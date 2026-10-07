@@ -105,7 +105,7 @@ class DiscordWebhookLogs:
     def get_avatar(self, username: str) -> str:
         """Fet an avatar_ulr based on a webhook username to send the record with."""
         # exact name
-        if avatar_url := (self.extra_exact_avatar_mapping | self.EXACT_AVATAR_MAPPING).get(username):
+        if (avatar_url := (self.extra_exact_avatar_mapping | self.EXACT_AVATAR_MAPPING).get(username)) is not None:
             return avatar_url
         # inclusions
         for search_name, candidate in self.INCLUSIVE_AVATAR_MAPPING.items():
