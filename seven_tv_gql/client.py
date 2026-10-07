@@ -8,7 +8,6 @@ Notices
 
 from __future__ import annotations
 
-# import asyncio
 import asyncio
 import logging
 import re
@@ -194,3 +193,21 @@ query TopSearchByEmoteName($emoteName: String) {
             Seven TV Emote.
         """
         return await PartialEmote(self, emote_id).fetch()
+
+    async def get_display_name_by_stv_id(self, stv_id: str) -> str:
+        """Get user by stv id."""
+        query = """
+query GetUserInfo($userId: Id!) {
+  users {
+    user(id: $userId) {
+      mainConnection {
+        platformId
+        platformDisplayName
+      }
+    }
+  }
+}
+"""
+        variables = {"userId": stv_id}
+        res = await self.invoke(query, variables)
+        return res["users"]["user"]["mainConnection"]["platformDisplayName"]

@@ -388,6 +388,30 @@ query FetchEmoteSetInfo($emoteSetId: Id!) {
         emote_set = res["emoteSets"]["emoteSet"]
         return EmoteSetInfo(name=emote_set["name"])
 
+    async def get_emote_added_by(self, emote_id: str) -> str:
+        """Get emote added by."""
+        query = """
+query GetWhoAdded($emoteSetId: Id!, $emoteId: Id!) {
+  emotes {
+    emote(id: $emoteId) {
+      inEmoteSets(emoteSetIds: [$emoteSetId]) {
+        emote {
+          addedById
+        }
+      }
+    }
+  }
+}
+"""
+        variables = {"emoteSetId": self.id, "emoteId": emote_id}
+        res = await self._client.invoke(query, variables)
+        try:
+            return res["emotes"]["emote"]["inEmoteSets"][0]["emote"]["addedById"]
+        except TypeError, KeyError, IndexError:
+            # this means res["emotes"]["emote"] is null
+            msg = "Emote not found"
+            raise exceptions.EmoteNotFoundError(msg) from None
+
 
 class PartialUser:
     """Partial Emote Set."""
