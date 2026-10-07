@@ -65,7 +65,7 @@ class GraphQL7TVClient:
         bot_7tv_user_id: str,
         bearer_token: str | None = None,
     ) -> None:
-        self._bearer_token = bearer_token
+        self._bearer_token: str | None = bearer_token
         self.user_id: str = bot_7tv_user_id
         self.session = ClientSession()
 
@@ -95,7 +95,7 @@ class GraphQL7TVClient:
                 (self.session).post(
                     url="https://api.7tv.app/v4/gql",
                     json={"query": query, "variables": variables},
-                    headers={"Authorization": self._bearer_token} if self._bearer_token else None,
+                    headers={"Authorization": self._bearer_token} if self._bearer_token is not None else None,
                 ) as response,
             ):
                 if response.ok:

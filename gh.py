@@ -146,7 +146,7 @@ class CommitInfo:
     @property
     def url(self) -> str:
         """Commit's url."""
-        if repo_url := self.repo.remotes["origin"].url:
+        if (repo_url := self.repo.remotes["origin"].url) is not None:
             repo_url = repo_url.removesuffix(".git")
         return f"{repo_url}/commit/{self.id}"
 
