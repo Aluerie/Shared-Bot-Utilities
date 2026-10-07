@@ -51,7 +51,7 @@ def human_timedelta(
     suffix: bool = False,
     strip: bool = False,
 ) -> str:
-    """Convert `dt.timedelta` to a string of humanly readable words.
+    """Convert ``dt.timedelta`` to a string of humanly readable words.
 
     Source
     ------
@@ -64,12 +64,12 @@ def human_timedelta(
         Represents a "timestamp" object.
         if it is int/float/timedelta then it's assumed to be in the past (as in "dt: int = 5" -> 5 seconds ago)
     source
-        Timestamp source to compare against, if `ts` is of type `dt.datetime`. Assumed as now if not given
+        Timestamp source to compare against, if ``ts`` is of type ``dt.datetime.`` Assumed as now if not given.
     accuracy: int = 2
         Amount of words to allow in the result. This is called accuracy because effectively,
         we are cutting down on how accurately the wording represents the time delta.
     mode: Literal["full", "short", "letter"] = "full"
-        A formatting choice for the output. See examples.
+        Formatting choice for the output. See examples.
     suffix
         If to include 'ago' into return string for past times.
     strip
@@ -82,12 +82,13 @@ def human_timedelta(
 
     Example:
     -------
-    ```
-    x = datetime.timedelta(seconds=66)
-    human_timedelta(x, mode="full")  # "1 minute 6 seconds"
-    human_timedelta(x, mode="short")  # "1 min 6 seconds"
-    human_timedelta(x, mode="letter")  # "1m6s"
-    ```
+    .. code-block::
+
+        x = datetime.timedelta(seconds=66)
+        human_timedelta(x, mode="full")  # "1 minute 6 seconds"
+        human_timedelta(x, mode="short")  # "1 min 6 seconds"
+        human_timedelta(x, mode="letter")  # "1m6s"
+
     """
     now = source or utcnow()
 
