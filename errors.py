@@ -2,20 +2,10 @@
 
 All exceptions raised by me should be defined in this file.
 It's just my small code practice.
-
+It might be a little bit overthinking, but it gets the job done the way I want.
 
 Notes
 -----
-The following errors are used as special means to notify the chatters about the error.
-Their type depends on whether the developers should also be notified.
-|                           | User notified?                       | Devs notified? |
-| ------------------------- | ------------------------------------ | -------------- |
-| SilentError               | No                                   | No             |
-| RespondWithError          | Yes                                  | No             |
-| RespondAndNotifyDevsError | Yes                                  | Yes            |
-| SomethingWentWrongError   | Yes, but with 'Something Went Wrong' | Yes            |
-| Other Exception Types     | Depends - look into Error Handlers   | Depends        |
-
 Notices
 -------
 * MPL-2.0 License, see LICENSE file for more details.
@@ -24,11 +14,30 @@ Notices
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 
 class CustomError(Exception):
     """The base exception for my (@Aluerie) projects. All other exceptions should inherit from this."""
+
+
+ErrorHandlerBehavior = Literal[
+    "silent",
+    "respond",
+    "respond+notify",
+    "sww+notify",
+]
+"""
+`BotError` have .behavior attribute which defines how error handlers are supposed to process those errors.
+I consider 5 distinguish cases
+|                              | User notified?                       | Devs notified? |
+| ---------------------------- | ------------------------------------ | -------------- |
+| silent                       | No                                   | No             |
+| respond                      | Yes                                  | No             |
+| respond+notify               | Yes                                  | Yes            |
+| sww+notify                   | Yes, but with 'Something Went Wrong' | Yes            |
+| Non-BotError exception types | Depends - look into Error Handlers   | Depends        |
+"""
 
 
 class BotError(CustomError):
@@ -61,18 +70,14 @@ class BotError(CustomError):
         self,
         msg: str,
         *,
-        respond: bool = True,
-        something_went_wrong: bool = False,
-        silent: bool = False,
-        register: bool = False,
+        behavior: ErrorHandlerBehavior = "respond",
+        response_message: str | None = None,
         **debug_data_kwargs: Any,
     ) -> None:
         super().__init__(msg)
         self.msg: str = msg
-        self.respond: bool = respond
-        self.something_went_wrong: bool = something_went_wrong
-        self.silent: bool = silent
-        self.register: bool = register
+        self.behavior: ErrorHandlerBehavior = behavior
+        self.response_message: str = response_message or msg
         self.debug_data: dict[str, Any] = debug_data_kwargs
 
 
@@ -96,11 +101,10 @@ class SomethingWentWrongError(BotError):
     """Placeholder Error for "Something went wrong" moments.
 
     An error type I mostly use for the debugging purposes in places I'm not sure what to do about.
-    Can attach some debug data into `.data` attribute for more debugging information.
     """
 
     def __init__(self, msg: str, **debug_data_kwargs: Any) -> None:
-        super().__init__(msg, something_went_wrong=True, register=True, **debug_data_kwargs)
+        super().__init__(msg, behavior="sww+notify", **debug_data_kwargs)
 
 
 ########################################

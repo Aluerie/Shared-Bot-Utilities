@@ -129,7 +129,10 @@ class GraphQL7TVClient:
             case {"status": status} if status == "Unauthorized":
                 # If bearer token expired -
                 # 7TV sends {'status': 'Unauthorized', 'error_code': 1000, 'error': 'invalid session'}
-                msg = "Ooups, 7TV logged me out; Irene needs to fix it (surely permanently this time)"
+                msg = (
+                    "It seems The bot's 7TV Bearer Token is expired. Irene, please, grab a new one via dev tools or "
+                    "figure out how to make the bot automatically refresh it."
+                )
                 raise exceptions.UnauthorizedError(msg, gql_json=gql_json)
             case _:
                 msg = "Something went wrong"

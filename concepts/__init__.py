@@ -7,3 +7,4 @@ Notices
 """
 
 from .base_bot import *
+from .error_notifications import *
