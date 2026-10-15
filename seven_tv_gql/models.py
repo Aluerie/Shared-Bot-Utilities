@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Literal, NamedTuple, NotRequired, TypedDict, cast, override
 
 from . import exceptions
-from .constants import COMMON_WORDS, EMOTE_SET_EMOTES_CAPACITY_LIMIT
+from .constants import EMOTE_SET_EMOTES_CAPACITY_LIMIT
 
 if TYPE_CHECKING:
     from .client import GraphQL7TVClient
@@ -252,31 +252,11 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
                 raise exceptions.EmoteNotFoundError(msg) from None
             raise
 
-    async def validate_emote_alias_not_a_common_word(
-        self,
-        emote_id: str,
-        emote_alias: str | None = None,
-        *,
-        allow_common_words: bool = True,
-    ) -> None:
-        """Validate if emote_alias is not a common word."""
-        if allow_common_words:
-            return
-
-        if emote_alias is None:
-            # we have to check emote's default name
-            emote = await self._client.fetch_emote(emote_id)
-            emote_alias = emote.default_name
-        if emote_alias in COMMON_WORDS:
-            msg = "Common words are not allowed to be used as emote aliases for this emote set"
-            raise exceptions.InvalidEmoteAliasError(msg)
-
     async def add_emote(
         self,
         emote_id: str,
         *,
         emote_alias: str | None = None,
-        allow_common_words: bool = True,
     ) -> None:
         """Add an emote to a 7TV emote set.
 
@@ -286,11 +266,7 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
             7TV emote id.
         emote_alias: str | None = None
             If provided then the emote will be added with an alias.
-        allow_common_words: bool = True
-            Whether to reject usage of common words as emote_alias or emote name.
         """
-        await self.validate_emote_alias_not_a_common_word(emote_id, emote_alias, allow_common_words=allow_common_words)
-
         query = """
 mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!) {
   emoteSets {
@@ -335,11 +311,8 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
         *,
         new_emote_alias: str,
         old_emote_alias: str | None = None,
-        allow_common_words: bool = True,
     ) -> None:
         """Rename 7tv emote."""
-        await self.validate_emote_alias_not_a_common_word(emote_id, new_emote_alias, allow_common_words=allow_common_words)
-
         query = """
 mutation EmoteSetRenameEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!, $new_name: String!) {
   emoteSets {
@@ -379,6 +352,7 @@ query FetchEmoteSetInfo($emoteSetId: Id!) {
   emoteSets {
     emoteSet(id: $emoteSetId) {
       name
+      ownerId
     }
   }
 }
@@ -386,7 +360,7 @@ query FetchEmoteSetInfo($emoteSetId: Id!) {
             variables={"emoteSetId": self.id},
         )
         emote_set = res["emoteSets"]["emoteSet"]
-        return EmoteSetInfo(name=emote_set["name"])
+        return EmoteSetInfo(name=emote_set["name"], owner_id=emote_set["emoteId"])
 
     async def get_emote_added_by(self, emote_id: str) -> str:
         """Get emote added by."""
@@ -629,3 +603,4 @@ class UserInfo(NamedTuple):
 
 class EmoteSetInfo(NamedTuple):
     name: str
+    owner_id: str

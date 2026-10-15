@@ -9,7 +9,7 @@ Notices
 from __future__ import annotations
 
 import asyncio
-import datetime as dt
+import datetime
 import logging
 import platform
 import re
@@ -75,14 +75,14 @@ class ErrorNotificationManager:
         webhook_url: str,
         ping: str,
         *,
-        cooldown: dt.timedelta = dt.timedelta(seconds=5),
+        cooldown: datetime.timedelta = datetime.timedelta(seconds=5),
     ) -> None:
         self.error_webhook: discord.Webhook = bot_base.webhook_from_url(webhook_url)
         self.ping: str = ping
-        self.cooldown: dt.timedelta = cooldown
+        self.cooldown: datetime.timedelta = cooldown
 
         self._lock: asyncio.Lock = asyncio.Lock()
-        self._most_recent: dt.datetime | None = None
+        self._most_recent: datetime.datetime | None = None
 
     def _yield_code_chunks(self, iterable: str, *, chunks_size: int = 2000) -> Generator[str]:
         codeblocks: str = "```py\n{}```"

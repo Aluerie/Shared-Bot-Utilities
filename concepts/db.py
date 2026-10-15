@@ -8,6 +8,7 @@ Notices
 
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING, Any, override
 
 import asyncpg
@@ -23,18 +24,37 @@ async def create_pool(postgres_url: str) -> PoolTypedWithAny:
         Postgresql URL to use for connection.
     """
 
-    def _encode_jsonb(value: Any) -> str:
-        return orjson.dumps(value).decode("utf-8")
-
-    def _decode_jsonb(value: str) -> Any:
-        return orjson.loads(value)
-
     async def init(con: asyncpg.Connection[asyncpg.Record]) -> None:
+
+        def _encode_jsonb(value: Any) -> str:
+            return orjson.dumps(value).decode("utf-8")
+
+        def _decode_jsonb(value: str) -> Any:
+            return orjson.loads(value)
+
         await con.set_type_codec(
             typename="jsonb",
             schema="pg_catalog",
             encoder=_encode_jsonb,
             decoder=_decode_jsonb,
+            format="text",
+        )
+
+        # Always return UTC-timezone aware timestamp.
+
+        def _encode_timestamp(value: datetime.datetime) -> str:
+            if value.tzinfo is not None:
+                value = value.astimezone(datetime.UTC).replace(tzinfo=None)
+            return value.isoformat(sep=" ")
+
+        def _decode_timestamp(value: str) -> datetime.datetime:
+            return datetime.datetime.fromisoformat(value).replace(tzinfo=datetime.UTC)
+
+        await con.set_type_codec(
+            typename="timestamp",
+            schema="pg_catalog",
+            encoder=_encode_timestamp,
+            decoder=_decode_timestamp,
             format="text",
         )
 

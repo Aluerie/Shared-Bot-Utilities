@@ -6,52 +6,96 @@ Notices
 * Copyright (C) 2020-present @Aluerie.
 """
 
-import datetime as dt
-from typing import Literal
+import datetime
+from typing import Literal, assert_never, get_args
 
 from dateutil.relativedelta import relativedelta
 
-from .fmt import human_join, plural
+from .fmt import plural
+
+#############################################################################################################################
+# Get time
+#############################################################################################################################
 
 
-def utcnow() -> dt.datetime:
-    """Get an aware UTC dt.datetime representing the current time.
+def utcnow() -> datetime.datetime:
+    """Get an aware UTC datetime.datetime representing the current time.
 
     Returns
     -------
-    dt.datetime
+    datetime.datetime
         The current aware datetime in UTC.
     """
-    return dt.datetime.now(dt.UTC)
+    return datetime.datetime.now(datetime.UTC)
 
 
-def round_to_next_hour(time_dt: dt.datetime) -> dt.datetime:
+def round_to_next_hour(dt: datetime.datetime) -> datetime.datetime:
     """Round to next hour.
+
+    This always advances. (e.g. 12:00:00 becomes 13:00:00)
 
     Source
     ------
     * https://stackoverflow.com/a/48108115
+
+    Parameters
+    ----------
+    dt
+        The datetime to round up.
+
+    Returns
+    -------
+    datetime.datetime
+        The start of the next hour.
     """
-    return time_dt.replace(minute=0, second=0, microsecond=0) + dt.timedelta(hours=1)
+    return dt.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
 
 
-def _fix_datetime(ts: dt.datetime) -> dt.datetime:
-    if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=dt.UTC)
-    ts = ts.replace(microsecond=0)  # Microsecond free zone
-    return ts.astimezone(dt.UTC)  # Make sure everything is UTC
+#############################################################################################################################
+# Human Timedelta
+#############################################################################################################################
+
+
+HumanTimedeltaMode = Literal["full", "short", "letter"]
+
+
+_BAD_DT_TYPE_MSG = "`dt` should be one of the following types: datetime.datetime, datetime.timedelta, int or float."
+
+
+def _validate_mode(mode: str) -> None:
+    literal_args = get_args(HumanTimedeltaMode)
+    if mode not in literal_args:
+        msg = f"`mode` should be one of {literal_args}, got {mode!r}."
+        raise ValueError(msg)
+
+
+def _validate_accuracy(accuracy: int | None) -> None:
+    if accuracy is not None and accuracy < 1:
+        msg = "`accuracy` should be at least 1 (or None for no limit)."
+        raise ValueError(msg)
+
+
+def _fix_datetime(dt: datetime.datetime) -> datetime.datetime:
+    """'Fix' datetime.datetime object.
+
+    * makes it timezone-aware (naive datetimes are assumed to be UTC);
+    * removes microseconds;
+    * converts to UTC timezone;
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=datetime.UTC)
+    dt = dt.replace(microsecond=0)
+    return dt.astimezone(datetime.UTC)
 
 
 def human_timedelta(
-    ts: dt.datetime | dt.timedelta | float,
+    dt: datetime.datetime | datetime.timedelta | float,
     *,
-    source: dt.datetime | None = None,
+    source: datetime.datetime | None = None,
     accuracy: int | None = 2,
-    mode: Literal["full", "short", "letter"] = "full",
-    suffix: bool = False,
-    strip: bool = False,
+    mode: HumanTimedeltaMode = "full",
 ) -> str:
-    """Convert ``dt.timedelta`` to a string of humanly readable words.
+    """Convert ``dt`` to a string of humanly readable words.
 
     Source
     ------
@@ -60,143 +104,144 @@ def human_timedelta(
 
     Parameters
     ----------
-    ts: dt.datetime | dt.timedelta | float
+    dt
         Represents a "timestamp" object.
         if it is int/float/timedelta then it's assumed to be in the past (as in "dt: int = 5" -> 5 seconds ago)
     source
-        Timestamp source to compare against, if ``ts`` is of type ``dt.datetime.`` Assumed as now if not given.
-    accuracy: int = 2
+        Timestamp source to compare against, if ``dt`` is of type ``datetime.datetime.`` Assumed as now if not given.
+    accuracy
         Amount of words to allow in the result. This is called accuracy because effectively,
         we are cutting down on how accurately the wording represents the time delta.
-    mode: Literal["full", "short", "letter"] = "full"
+        Pass ``None`` for full accuracy.
+    mode
         Formatting choice for the output. See examples.
-    suffix
-        If to include 'ago' into return string for past times.
-    strip
-        Whether strip the output from spaces.
 
     Returns
     -------
     str
         Human-readable description for the time delta.
 
-    Example:
-    -------
+    Examples
+    --------
     .. code-block::
 
         x = datetime.timedelta(seconds=66)
         human_timedelta(x, mode="full")  # "1 minute 6 seconds"
-        human_timedelta(x, mode="short")  # "1 min 6 seconds"
-        human_timedelta(x, mode="letter")  # "1m6s"
+        human_timedelta(x, mode="short")  # "1 min 6 sec"
+        human_timedelta(x, mode="letter")  # "01m06s"
 
     """
-    now = source or utcnow()
+    _validate_mode(mode)
+    _validate_accuracy(accuracy)
 
-    match ts:
-        case dt.datetime():
+    now = _fix_datetime(source or utcnow())
+
+    match dt:
+        case bool():
+            # bool is a subclass of int, but passing it is wrong
+            raise TypeError(_BAD_DT_TYPE_MSG)
+        case datetime.datetime():
             pass
-        case dt.timedelta():
-            ts = now - ts
+        case datetime.timedelta():
+            dt = now - dt
         case int() | float():
-            ts = now - dt.timedelta(seconds=ts)
+            dt = now - datetime.timedelta(seconds=dt)
+        case _:
+            raise TypeError(_BAD_DT_TYPE_MSG)
 
-    now = _fix_datetime(now)
-    ts = _fix_datetime(ts)
+    dt = _fix_datetime(dt)
 
-    # This implementation uses relativedelta instead of the much more obvious
-    # divmod approach with seconds because the seconds approach is not entirely
-    # accurate once you go over 1 week in terms of accuracy since you have to
-    # hardcode a month as 30 or 31 days.
-    # A query like "11 months" can be interpreted as "!1 months and 6 days"
-    if ts > now:
-        delta = relativedelta(ts, now)
-        output_suffix = ""
-    else:
-        delta = relativedelta(now, ts)
-        output_suffix = " ago" if suffix else ""
+    delta = relativedelta(dt, now) if dt > now else relativedelta(now, dt)
 
     attrs = [
-        ("year", "year", "y"),
-        ("month", "month", "mo"),
-        ("day", "day", "d"),
-        ("hour", "hr", "h"),
-        ("minute", "min", "m"),
-        ("second", "sec", "s"),
+        ("year", "year", "y", True),
+        ("month", "month", "mo", True),
+        ("day", "day", "d", True),
+        ("hour", "hr", "h", False),
+        ("minute", "min", "m", False),
+        ("second", "sec", "s", False),
     ]
 
     output = []
-    for index, (full_attr, short_attr, letter_attr) in enumerate(attrs):
-        elem = getattr(delta, full_attr + "s")
+    for full, short, letter, use_plural_in_short_mode in attrs:
+        elem: int = getattr(delta, full + "s")  # delta.years, delta.months, delta.days, ...
         if not elem:
             continue
 
-        if full_attr == "day":
-            weeks = delta.weeks
-            if weeks:
-                elem -= weeks * 7
-                if mode == "full":
-                    output.append(format(plural(weeks), "week"))
-                elif mode == "short":
-                    output.append(f"{weeks} wk")
-                else:
-                    output.append(f"{weeks}w")
-
-        if elem <= 0:
-            continue
-
         if mode == "full":
-            output.append(format(plural(elem), full_attr))
+            output.append(format(plural(elem), full))
         elif mode == "short":
-            to_append = format(plural(elem), short_attr) if index < 3 else f"{elem} {short_attr}"
+            to_append = format(plural(elem), short) if use_plural_in_short_mode else f"{elem} {short}"
             output.append(to_append)
+        elif mode == "letter":
+            output.append(f"{elem:02d}{letter}")
         else:
-            output.append(f"{elem}{letter_attr}")
+            assert_never(mode)
 
     if accuracy is not None:
         output = output[:accuracy]
 
-    if len(output) == 0:
+    if not output:
         return "now"
-    if mode == "full":
-        return human_join(output, final="and") + output_suffix
-    sep = "" if strip else " "
-    return sep.join(output) + output_suffix
+    sep = "" if mode == "letter" else " "
+    return sep.join(output)
 
 
 def dm_human_timedelta(
-    ts: dt.datetime | dt.timedelta | float,
+    dt: datetime.datetime | datetime.timedelta | float,
     *,
-    source: dt.datetime | None = None,
-    accuracy: int = 2,
-    mode: Literal["full", "short", "letter"] = "full",
+    source: datetime.datetime | None = None,
+    accuracy: int | None = 2,
+    mode: HumanTimedeltaMode = "full",
 ) -> str:
     """Convert timestamp to human readable words.
 
-    Parameters are the same as in `human_timedelta` so I will be lazy.
     Just know that the difference between this function and `human_timedelta` is that
-    the former uses `relativedelta` approach instead of much more obvious `divmod` approach.
+    the latter uses `relativedelta` approach instead of much more obvious `divmod` approach.
     The problem is that `divmod` approach becomes not entirely accurate once we go over 1 week since
     we have to hardcode month as 30 or 31 days, etc. A query like "11 months" can be interpreted as "11 months and 6 days".
 
     But I guess, this function is a bit more efficient, if we care about it.
-    So you can use this function if we don't need to use "weeks", "months", "years" in the output.
+    We should use this function if we don't need to use "weeks", "months", "years" in the output.
 
     Source
     ------
     * `?tag format timedelta` in Discord.py guild.
+
+    Parameters
+    ----------
+    dt
+        Represents a "timestamp" object.
+        if it is int/float/timedelta then it's assumed to be in the past (as in "dt: int = 5" -> 5 seconds ago)
+    source
+        Timestamp source to compare against, if ``dt`` is of type ``datetime.datetime.`` Assumed as now if not given.
+    accuracy
+        Amount of words to allow in the result. This is called accuracy because effectively,
+        we are cutting down on how accurately the wording represents the time delta.
+        Pass ``None`` for full accuracy.
+    mode
+        Formatting choice for the output. See examples.
+
     """
-    if isinstance(ts, dt.timedelta):
-        total_seconds = int(ts.total_seconds())
-    elif isinstance(ts, (int, float)):
-        total_seconds = int(ts)
-    elif isinstance(ts, dt.datetime):
-        now = source or utcnow()
-        now = _fix_datetime(now)
-        ts = _fix_datetime(ts)
-        total_seconds = int((now - ts).total_seconds())
-    else:
-        msg = "Argument `ts` should be one of the following types: dt.datetime, dt.timedelta, int or float."
-        raise TypeError(msg)
+    _validate_mode(mode)
+    _validate_accuracy(accuracy)
+
+    match dt:
+        case bool():
+            raise TypeError(_BAD_DT_TYPE_MSG)
+        case datetime.datetime():
+            now = _fix_datetime(source or utcnow())
+            total_seconds = (now - _fix_datetime(dt)).total_seconds()
+        case datetime.timedelta():
+            total_seconds = dt.total_seconds()
+        case int() | float():
+            total_seconds = dt
+        case _:
+            raise TypeError(_BAD_DT_TYPE_MSG)
+
+    total_seconds = abs(int(total_seconds))
+    if total_seconds == 0:
+        return "now"
 
     minutes, seconds = divmod(total_seconds, 60)
     hours, minutes = divmod(minutes, 60)
@@ -207,23 +252,23 @@ def dm_human_timedelta(
 
     match mode:
         case "full":
-            # 1 minute 6 seconds
+            # 1 minute 30 seconds
             time_units = get_time_units("day", "hour", "minute", "second")
             output = [format(plural(number), word) for word, number in time_units.items() if number]
-            return " ".join(output[:accuracy])
+            sep = " "
         case "short":
             # 1 min 30 sec
-            time_units = get_time_units(f"{plural(days):day!}", "hr", "min", "sec")
+            time_units = get_time_units("day" if days == 1 else "days", "hr", "min", "sec")
             output = [f"{number} {word}" for word, number in time_units.items() if number]
-            return " ".join(output[:accuracy])
+            sep = " "
         case "letter":
-            # 1m30s
+            # 01m30s
             time_units = get_time_units("d", "h", "m", "s")
             output = [f"{number:02d}{letter}" for letter, number in time_units.items() if number]
-            return "".join(output[:accuracy]).removeprefix("0")  # remove leading zero if it managed to sneak in
+            sep = ""
         case _:
-            msg = "Incorrect mode passed"
-            raise RuntimeError(msg)
+            assert_never(mode)
 
-
-# TODO: look at https://discord.com/channels/336642139381301249/559455534965850142/1516505091207860351
+    if accuracy is not None:
+        output = output[:accuracy]
+    return sep.join(output)

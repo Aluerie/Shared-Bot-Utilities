@@ -17,7 +17,7 @@ from discord.ext import tasks
 from discord.utils import MISSING
 
 if TYPE_CHECKING:
-    import datetime as dt
+    import datetime
 
 
 log = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ class Loop(tasks.Loop[LF]):
         seconds: float,
         hours: float,
         minutes: float,
-        time: dt.time | Sequence[dt.time],
+        time: datetime.time | Sequence[datetime.time],
         count: int | None,
         *,
         reconnect: bool,
@@ -72,7 +72,7 @@ def loop(
     seconds: float = MISSING,
     minutes: float = MISSING,
     hours: float = MISSING,
-    time: dt.time | Sequence[dt.time] = MISSING,
+    time: datetime.time | Sequence[datetime.time] = MISSING,
     count: int | None = None,
     reconnect: bool = True,
     name: str | None = None,

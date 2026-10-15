@@ -9,7 +9,7 @@ Notices
 from __future__ import annotations
 
 import asyncio
-import datetime as dt
+import datetime
 import logging
 import textwrap
 from typing import TYPE_CHECKING, ClassVar, override
@@ -76,8 +76,8 @@ class DiscordWebhookLogs:
 
         self._logging_queue: asyncio.Queue[logging.LogRecord] = asyncio.Queue()
         self._lock: asyncio.Lock = asyncio.Lock()
-        self.cooldown: dt.timedelta = dt.timedelta(seconds=5)
-        self._most_recent: dt.datetime | None = None
+        self.cooldown: datetime.timedelta = datetime.timedelta(seconds=5)
+        self._most_recent: datetime.datetime | None = None
         self.logs_handler = LoggingHandler(self)
 
         self.extra_exact_avatar_mapping: dict[str, str] = {}
@@ -117,7 +117,7 @@ class DiscordWebhookLogs:
     async def send_log_record(self, record: logging.LogRecord) -> None:
         """Send Log record to discord webhook."""
         emoji = self.LEVEL_EMOJIS.get(record.levelname, "\N{WHITE QUESTION MARK ORNAMENT}")
-        record_dt = dt.datetime.fromtimestamp(record.created, dt.UTC)
+        record_dt = datetime.datetime.fromtimestamp(record.created, datetime.UTC)
         embed = discord.Embed(
             color=self.LEVEL_COLORS.get(record.levelname),
             description=textwrap.shorten(
