@@ -95,7 +95,7 @@ class GraphQL7TVClient:
                 (self.session).post(
                     url="https://api.7tv.app/v4/gql",
                     json={"query": query, "variables": variables},
-                    headers={"Authorization": self._bearer_token} if self._bearer_token is not None else None,
+                    headers={"Authorization": f"Bearer {self._bearer_token}"} if self._bearer_token is not None else None,
                 ) as response,
             ):
                 if response.ok:
@@ -152,6 +152,10 @@ class GraphQL7TVClient:
 
     async def search_emote(self, emote_name: str, index: int = 0) -> PartialEmote:
         """Search Emote by name."""
+        if index < 0:
+            msg = "Negative index is not allowed"
+            raise exceptions.UnsatisfyingResultError(msg)
+
         query = """
 query TopSearchByEmoteName($emoteName: String) {
   emotes {
@@ -179,7 +183,7 @@ query TopSearchByEmoteName($emoteName: String) {
         try:
             return PartialEmote(self, emote_id=emote_items[index]["id"])
         except IndexError:
-            msg = f"Search result doesn't have that many emotes (only {len(res)} total)"
+            msg = f"Search result doesn't have that many emotes (only {len(emote_items)} total)"
             raise exceptions.EmoteNotFoundError(msg) from None
 
     async def fetch_emote(self, emote_id: str) -> Emote:
