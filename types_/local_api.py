@@ -87,7 +87,6 @@ class StreamerLiveMatch(TypedDict):
 class StreamerLiveMatchPlayer(TypedDict):
     id: int
     player_slot: int
-    color: str
     lifetime_games: int
     rank_display_name: str
     hero_id: int  # Hero

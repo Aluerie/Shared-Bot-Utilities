@@ -116,11 +116,11 @@ class PreviousMatch(MatchBase):
 
 class ProfileCard:
     def __init__(self, data: schemas.ProfileCard) -> None:
-        self.medal: str = data["rank_display_name"]
+        self.rank_display_name: str = data["rank_display_name"]
 
     @override
     def __repr__(self) -> str:
-        return f"<ProfileCard medal={self.medal}>"
+        return f"<ProfileCard rank={self.rank_display_name}>"
 
 
 class SteamUser:
@@ -162,10 +162,32 @@ class StreamerLiveMatchPlayer:
     def __init__(self, data: schemas.StreamerLiveMatchPlayer) -> None:
         self.id: int = data["id"]
         self.player_slot: int = data["player_slot"]
-        self.color: str = data["color"]
         self.lifetime_games: int = data["lifetime_games"]
         self.rank_display_name: str = data["rank_display_name"]
         self.hero: Hero = Hero.try_value(data["hero_id"])
+
+    @property
+    def color(self) -> str:
+        colors = [
+            "Blue",
+            "Teal",
+            "Purple",
+            "Yellow",
+            "Orange",
+            "Pink",
+            "Olive",
+            "LightBlue",
+            "DarkGreen",
+            "Brown",
+        ]
+        try:
+            return colors[self.player_slot]
+        except IndexError:
+            return "Colorless"
+
+    @property
+    def identifier(self) -> str:
+        return self.hero.name if self.hero else self.color
 
 
 class LocalAPI:
@@ -209,7 +231,7 @@ class LocalAPI:
         return SteamUser(data)
 
     async def get_steam_user_convert(self, argument: str) -> SteamUser:
-        """Get steam id. Converts ID from ID/URL to friend ID"""
+        """Get steam id. Converts ID from ID/URL to friend ID."""
         data: schemas.SteamUser = await self._invoke(endpoint=f"/steam_user_convert/{argument}")
         return SteamUser(data)
 
