@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime  # ruff: ignore[typing-only-standard-library-import]
 from typing import Literal, TypedDict
 
 from shared.local_api.client import MatchState  # ruff: ignore[typing-only-first-party-import]
@@ -22,8 +21,8 @@ class MinimalMatch(TypedDict):
     lobby_type: int  # LobbyType
     radiant_score: int
     dire_score: int
-    start_time: datetime.datetime
-    duration: datetime.timedelta
+    start_time: str
+    duration: int
 
 
 class MinimalMatchPlayer(TypedDict):
@@ -43,8 +42,8 @@ class PreviousMatch(TypedDict):
     abandon: bool
     game_mode: int  # GameMode
     lobby_type: int  # LobbyType
-    start_time: datetime.datetime
-    duration: datetime.timedelta
+    start_time: str
+    duration: int
 
 
 class ProfileCard(TypedDict):
@@ -79,7 +78,7 @@ class StreamerLiveMatch(TypedDict):
     message: str
     server_steam_id: int | None
     players: list[StreamerLiveMatchPlayer]
-    started_at: datetime.datetime
+    started_at: str
     average_mmr: int | None
     state: MatchState
 

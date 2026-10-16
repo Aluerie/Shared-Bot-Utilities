@@ -75,8 +75,8 @@ class MinimalMatch(MatchBase):
         self.players = [MinimalMatchPlayer(p) for p in data["players"]]
         self.radiant_score: int = data["radiant_score"]
         self.dire_score: int = data["dire_score"]
-        self.start_dt: datetime.datetime = data["start_time"]
-        self.duration: datetime.timedelta = data["duration"]
+        self.start_dt: datetime.datetime = datetime.datetime.fromisoformat(data["start_time"])
+        self.duration: datetime.timedelta = datetime.timedelta(data["duration"])
 
     @override
     def __repr__(self) -> str:
@@ -102,8 +102,8 @@ class PreviousMatch(MatchBase):
         self.hero: Hero = Hero.try_value(data["hero_id"])
         self.win: bool = data["win"]
         self.abandon: bool = data["abandon"]
-        self.start_dt: datetime.datetime = data["start_time"]
-        self.duration: datetime.timedelta = data["duration"]
+        self.start_dt: datetime.datetime = datetime.datetime.fromisoformat(data["start_time"])
+        self.duration: datetime.timedelta = datetime.timedelta(data["duration"])
 
     @property
     def end_dt(self) -> datetime.datetime:

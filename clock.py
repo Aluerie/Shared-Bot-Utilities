@@ -59,7 +59,10 @@ def round_to_next_hour(dt: datetime.datetime) -> datetime.datetime:
 HumanTimedeltaMode = Literal["full", "short", "letter"]
 
 
-_BAD_DT_TYPE_MSG = "`dt` should be one of the following types: datetime.datetime, datetime.timedelta, int or float."
+_BAD_DT_TYPE_MSG = (
+    "Argument `dt` should be one of the following types: datetime.datetime, datetime.timedelta, int or float. "
+    "Instead got {0}"
+)
 
 
 def _validate_mode(mode: str) -> None:
@@ -147,7 +150,8 @@ def human_timedelta(
         case int() | float():
             dt = now - datetime.timedelta(seconds=dt)
         case _:
-            raise TypeError(_BAD_DT_TYPE_MSG)
+            msg = _BAD_DT_TYPE_MSG.format(type(dt))
+            raise TypeError(msg)
 
     dt = _fix_datetime(dt)
 

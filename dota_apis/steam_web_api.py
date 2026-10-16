@@ -35,18 +35,36 @@ log = logging.getLogger(__name__)
 class RealTimeStats:
     def __init__(self, data: schemas.RealTimeStats) -> None:
         self.id = int(data["match"]["match_id"])
-        self.lobby_type = LobbyType.try_value(data["match"]["lobby_type"])
-        self.game_mode = GameMode.try_value(data["match"]["game_mode"])
-        self.started_at = datetime.datetime.fromtimestamp(data["match"]["start_timestamp"], tz=datetime.UTC)
+        self.lobby_type: LobbyType = LobbyType.try_value(data["match"]["lobby_type"])
+        self.game_mode: GameMode = GameMode.try_value(data["match"]["game_mode"])
+        self.started_at: datetime.datetime = datetime.datetime.fromtimestamp(
+            data["match"]["start_timestamp"], tz=datetime.UTC
+        )
         self.players = [
             RealTimeStatsPlayer(p) for p in itertools.chain(data["teams"][0]["players"], data["teams"][1]["players"])
         ]
+        self.radiant_nw = data["teams"][0]["net_worth"]
+        self.radiant_score: int = data["teams"][0]["score"]
+        self.dire_nw: int = data["teams"][1]["net_worth"]
+        self.dire_score: int = data["teams"][1]["score"]
 
 
 class RealTimeStatsPlayer:
     def __init__(self, data: schemas.RealTimeStatsTeamPlayer) -> None:
         self.id = data["accountid"]
+        self.name: str = data["name"]
         self.hero: Hero = Hero.try_value(data["heroid"])
+        self.level: int = data["level"]
+        self.kills = data["kill_count"]
+        self.assists = data["assists_count"]
+        self.deaths = data["death_count"]
+        self.creep_score = data["lh_count"]
+        self.denies = data["denies_count"]
+        self.networth = data["net_worth"]
+        try:
+            self.items = data["items"]
+        except KeyError:
+            self.items = []
 
 
 class SteamWebAPIClient:
