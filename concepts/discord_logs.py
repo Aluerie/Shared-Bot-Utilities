@@ -38,7 +38,10 @@ class LoggingHandler(logging.Handler):
     @override
     def filter(self, record: logging.LogRecord) -> bool:
         """Filter out some somewhat pointless messages so we don't spam the channel as much."""
-        messages_to_ignore = ("Webhook ID 1280488051776163903 is rate limited.",)
+        messages_to_ignore = (
+            "Webhook ID 1280488051776163903 is rate limited.",
+            "Clock drift detected for task",  # I'm not sure how to fix this Discord.py warning
+        )
         return not any(msg in record.message for msg in messages_to_ignore)
 
     @override

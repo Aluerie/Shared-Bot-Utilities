@@ -9,10 +9,13 @@ License
 from __future__ import annotations
 
 import asyncio
+import datetime
+import itertools
 import logging
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import orjson
+from steam.ext.dota2 import GameMode, Hero, LobbyType
 
 from shared import errors
 
@@ -27,6 +30,23 @@ if TYPE_CHECKING:
 
 __all__ = ("SteamWebAPIClient",)
 log = logging.getLogger(__name__)
+
+
+class RealTimeStats:
+    def __init__(self, data: schemas.RealTimeStats) -> None:
+        self.id = int(data["match"]["match_id"])
+        self.lobby_type = LobbyType.try_value(data["match"]["lobby_type"])
+        self.game_mode = GameMode.try_value(data["match"]["game_mode"])
+        self.started_at = datetime.datetime.fromtimestamp(data["match"]["start_timestamp"], tz=datetime.UTC)
+        self.players = [
+            RealTimeStatsPlayer(p) for p in itertools.chain(data["teams"][0]["players"], data["teams"][1]["players"])
+        ]
+
+
+class RealTimeStatsPlayer:
+    def __init__(self, data: schemas.RealTimeStatsTeamPlayer) -> None:
+        self.id = data["accountid"]
+        self.hero: Hero = Hero.try_value(data["heroid"])
 
 
 class SteamWebAPIClient:
@@ -69,11 +89,14 @@ class SteamWebAPIClient:
 
         return result
 
-    async def get_real_time_stats(self, server_steam_id: int) -> schemas.RealTimeStats:
+    async def get_real_time_stats(self, server_steam_id: int) -> RealTimeStats:
         """Get Real Time Stats from Steam Web API.
 
         Links
         -----
         * https://steamapi.xpaw.me/#IDOTA2MatchStats_570/GetRealtimeStats.
         """
-        return await self._invoke("IDOTA2MatchStats_570/GetRealtimeStats/v1", server_steam_id=server_steam_id)
+        data: schemas.RealTimeStats = await self._invoke(
+            "IDOTA2MatchStats_570/GetRealtimeStats/v1", server_steam_id=server_steam_id
+        )
+        return RealTimeStats(data)

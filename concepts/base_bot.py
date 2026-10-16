@@ -8,7 +8,7 @@ Notices
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import discord
 
@@ -19,24 +19,37 @@ if TYPE_CHECKING:
 class BotBase:
     """Bot Base."""
 
-    def __init__(self, session: aiohttp.ClientSession, error_webhook_url: str, error_ping: str) -> None:
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        *,
+        error_webhook: str,
+        error_ping: str,
+        notification_webhook: str,
+    ) -> None:
         self.session: aiohttp.ClientSession = session
-        self._error_webhook_url: str = error_webhook_url
+        self._error_webhook_url: str = error_webhook
         self.error_ping: str = error_ping
+        self._notification_webhook_url: str = notification_webhook
 
     def webhook_from_url(self, url: str) -> discord.Webhook:
         """Shortcut to discord.Webhook.from_url with some filled args."""
         return discord.Webhook.from_url(url=url, session=self.session)
 
-    # async def ping_developers(self, content: str = "", **send_kwargs: Any) -> None:
-    #     """Ping developers.
+    @discord.utils.cached_property
+    def notification_webhook(self) -> discord.Webhook:
+        """Webhook in hideout server to send notifications to the developer(-s)."""
+        return self.webhook_from_url(self._notification_webhook_url)
 
-    #     Parameters
-    #     ----------
-    #     content: str
-    #         Content to send together with the error-role ping.
-    #     send_kwargs: Any
-    #         Kwargs for `webhook.send` method. Look for supported argument in `discord.Webhook.send` method.
-    #     """
-    #     content = f"{self.error_ping}\n{content}"
-    #     await self.error_webhook.send(content, **send_kwargs)
+    async def notify_developers(self, content: str = "", **send_kwargs: Any) -> None:
+        """Notify developers.
+
+        Parameters
+        ----------
+        content: str
+            Content to send together with the error-role ping.
+        send_kwargs: Any
+            Kwargs for `webhook.send` method. Look for supported argument in `discord.Webhook.send` method.
+        """
+        content = f"{self.error_ping}\n{content}"
+        await self.notification_webhook.send(content, **send_kwargs)

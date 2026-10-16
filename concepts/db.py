@@ -8,7 +8,6 @@ Notices
 
 from __future__ import annotations
 
-import datetime
 from typing import TYPE_CHECKING, Any, override
 
 import asyncpg
@@ -37,24 +36,6 @@ async def create_pool(postgres_url: str) -> PoolTypedWithAny:
             schema="pg_catalog",
             encoder=_encode_jsonb,
             decoder=_decode_jsonb,
-            format="text",
-        )
-
-        # Always return UTC-timezone aware timestamp.
-
-        def _encode_timestamp(value: datetime.datetime) -> str:
-            if value.tzinfo is not None:
-                value = value.astimezone(datetime.UTC).replace(tzinfo=None)
-            return value.isoformat(sep=" ")
-
-        def _decode_timestamp(value: str) -> datetime.datetime:
-            return datetime.datetime.fromisoformat(value).replace(tzinfo=datetime.UTC)
-
-        await con.set_type_codec(
-            typename="timestamp",
-            schema="pg_catalog",
-            encoder=_encode_timestamp,
-            decoder=_decode_timestamp,
             format="text",
         )
 
