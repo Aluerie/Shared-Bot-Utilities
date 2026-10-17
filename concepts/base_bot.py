@@ -23,13 +23,11 @@ class BotBase:
         self,
         session: aiohttp.ClientSession,
         *,
-        error_webhook: str,
-        error_ping: str,
+        ping: str,
         notification_webhook: str,
     ) -> None:
         self.session: aiohttp.ClientSession = session
-        self._error_webhook_url: str = error_webhook
-        self.error_ping: str = error_ping
+        self.ping: str = ping
         self._notification_webhook_url: str = notification_webhook
 
     def webhook_from_url(self, url: str) -> discord.Webhook:
@@ -51,5 +49,5 @@ class BotBase:
         send_kwargs: Any
             Kwargs for `webhook.send` method. Look for supported argument in `discord.Webhook.send` method.
         """
-        content = f"{self.error_ping}\n{content}"
+        content = f"{self.ping}\n{content}"
         await self.notification_webhook.send(content, **send_kwargs)

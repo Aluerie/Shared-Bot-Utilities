@@ -252,6 +252,11 @@ class LocalAPI:
             msg = "It seems Dota2Bot is down, please ask Irene to fix it"
             raise errors.RespondWithError(msg)
 
+    async def get_friend(self, friend_id: int) -> Friend:
+        """Get friend."""
+        data: schemas.Friend = await self._invoke(endpoint=f"/friend/{friend_id}")
+        return Friend(data)
+
     async def get_minimal_match(self, match_id: int) -> MinimalMatch:
         """Get minimal match."""
         data: schemas.MinimalMatch = await self._invoke(endpoint=f"/minimal/{match_id}")
@@ -276,8 +281,3 @@ class LocalAPI:
         """Get steam id. Converts ID from ID/URL to friend ID."""
         data: schemas.SteamUser = await self._invoke(endpoint=f"/steam_user_convert/{argument}")
         return SteamUser(data)
-
-    async def get_streamer(self, friend_id: int) -> Friend:
-        """Get streamer."""
-        data: schemas.Friend = await self._invoke(endpoint=f"/streamer/{friend_id}")
-        return Friend(data)

@@ -73,18 +73,18 @@ class ErrorNotificationManager:
         self,
         bot_base: BotBase,
         webhook_url: str,
-        ping: str,
         *,
         cooldown: datetime.timedelta = datetime.timedelta(seconds=5),
     ) -> None:
         self.error_webhook: discord.Webhook = bot_base.webhook_from_url(webhook_url)
-        self.ping: str = ping
+        self.ping: str = bot_base.ping
         self.cooldown: datetime.timedelta = cooldown
 
         self._lock: asyncio.Lock = asyncio.Lock()
         self._most_recent: datetime.datetime | None = None
 
-    def _yield_code_chunks(self, iterable: str, *, chunks_size: int = 2000) -> Generator[str]:
+    @staticmethod
+    def _yield_code_chunks(iterable: str, *, chunks_size: int = 2000) -> Generator[str]:
         codeblocks: str = "```py\n{}```"
         max_chars_in_code: int = chunks_size - (len(codeblocks) - 2)  # chunks_size minus code blocker size
 

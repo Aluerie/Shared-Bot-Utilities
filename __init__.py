@@ -9,6 +9,7 @@ Notices
 """
 
 from . import (
+    apis as apis,
     clock as clock,
     concepts as concepts,
     errors as errors,
@@ -16,5 +17,4 @@ from . import (
     fuzzy as fuzzy,
     globs as globs,
     other as other,
-    seven_tv_gql as seven_tv_gql,
 )
