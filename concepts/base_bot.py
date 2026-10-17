@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Any
 
 import discord
 
+from .error_notifications import ErrorNotificationManager
+
 if TYPE_CHECKING:
     import aiohttp
 
@@ -23,12 +25,15 @@ class BotBase:
         self,
         session: aiohttp.ClientSession,
         *,
-        ping: str,
+        role_mention: str,
+        error_webhook: str,
         notification_webhook: str,
     ) -> None:
         self.session: aiohttp.ClientSession = session
-        self.ping: str = ping
+        self.role_mention: str = role_mention
         self._notification_webhook_url: str = notification_webhook
+
+        self.error_notification_manager = ErrorNotificationManager(self, error_webhook)
 
     def webhook_from_url(self, url: str) -> discord.Webhook:
         """Shortcut to discord.Webhook.from_url with some filled args."""
@@ -49,5 +54,5 @@ class BotBase:
         send_kwargs: Any
             Kwargs for `webhook.send` method. Look for supported argument in `discord.Webhook.send` method.
         """
-        content = f"{self.ping}\n{content}"
+        content = f"{self.role_mention}\n{content}"
         await self.notification_webhook.send(content, **send_kwargs)

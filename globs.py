@@ -14,7 +14,7 @@ from enum import StrEnum
 
 __all__ = (
     "DIGITS",
-    "Global7TV",
+    "TwitchEmote",
 )
 
 DIGITS = [
@@ -31,8 +31,18 @@ DIGITS = [
 ]
 
 
-class Global7TV(StrEnum):
-    """Global 7TV Emotes."""
+class TwitchEmote(StrEnum):
+    """Emotes that the twitch bot can use."""
 
+    # BTTV Global Emotes
+
+    # FFZ Global Emotes
+
+    # 7TV Global Emotes
     EZ = "EZ"
     FeelsDankMan = "FeelsDankMan"
+
+    # Twitch.tv Global Emotes
+    CaitThinking = "CaitThinking"
+
+    # Twitch.tv @IrenesBot Sub Emotes

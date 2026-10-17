@@ -66,7 +66,7 @@ class ErrorNotificationManager:
         "_most_recent",
         "cooldown",
         "error_webhook",
-        "ping",
+        "role_mention",
     )
 
     def __init__(
@@ -77,7 +77,7 @@ class ErrorNotificationManager:
         cooldown: datetime.timedelta = datetime.timedelta(seconds=5),
     ) -> None:
         self.error_webhook: discord.Webhook = bot_base.webhook_from_url(webhook_url)
-        self.ping: str = bot_base.ping
+        self.role_mention: str = bot_base.role_mention
         self.cooldown: datetime.timedelta = cooldown
 
         self._lock: asyncio.Lock = asyncio.Lock()
@@ -147,7 +147,7 @@ class ErrorNotificationManager:
         """
         code_chunks = list(self._yield_code_chunks(traceback))
 
-        await self.error_webhook.send(self.ping)
+        await self.error_webhook.send(self.role_mention)
         for chunk in code_chunks:
             await self.error_webhook.send(chunk)
         await self.error_webhook.send(embed=embed)
