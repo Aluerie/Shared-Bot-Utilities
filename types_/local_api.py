@@ -1,14 +1,44 @@
+"""Local Schemas.
+
+Notices
+-------
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
+"""
+
 from __future__ import annotations
 
 from typing import Literal, TypedDict
 
-from shared.local_api.client import MatchState  # ruff: ignore[typing-only-first-party-import]
+from shared.apis.local import MatchState  # ruff: ignore[typing-only-first-party-import]
+
+__all__ = (
+    "Friend",
+    "MinimalMatch",
+    "PreviousMatch",
+    "ProfileCard",
+    "SteamUser",
+)
+
 
 type TagLiteral = Literal["playing", "spectating", "unsupported"]
 
 #############################################################################################################################
 # ENDPOINTS
 #############################################################################################################################
+
+
+class Friend(TypedDict):
+    """/friend/{friend_id} Endpoint."""
+
+    id: int
+    name: str
+    is_playing_dota: bool
+    status: str
+    rich_presence: str
+    raw_rich_presence: dict[str, str]
+    activity: str
+    live_match: StreamerLiveMatch | None
 
 
 class MinimalMatch(TypedDict):
@@ -57,17 +87,6 @@ class SteamUser(TypedDict):
 
     id: int
     name: str
-
-
-class Streamer(TypedDict):
-    id: int
-    name: str
-    is_playing_dota: bool
-    status: str
-    rich_presence: str
-    raw_rich_presence: dict[str, str]
-    activity: str
-    live_match: StreamerLiveMatch | None
 
 
 class StreamerLiveMatch(TypedDict):

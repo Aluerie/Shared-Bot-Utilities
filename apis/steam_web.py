@@ -1,4 +1,4 @@
-"""Dota 2 API Clients.
+"""Steam Web API Clients.
 
 License
 -------

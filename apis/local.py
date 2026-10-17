@@ -1,3 +1,22 @@
+"""Local API.
+
+In the past, I was running Dota 2 Client from steamIO in the same process as my twitch/discord bots.
+However, there are seemingly multiple unsolvable issues that comes to such structure
+* If steam is down (even Tuesday Maintenance) then both bots go down;
+* steamIO has some issue with reconnecting to steam;
+
+In the end, it seems that the best solution to this problem is run steam bot in a separate process so if it dies/struggles
+then my twitch/discord bots are unaffected.
+
+So currently, Dota2Bot hosts its API at localhost:8000.
+Mostly, Dota 2 and steam related functionality. Maybe more incoming in future.
+
+Notices
+-------
+* MPL-2.0 License, see LICENSE file for more details.
+* Copyright (C) 2020-present @Aluerie.
+"""
+
 from __future__ import annotations
 
 import datetime
@@ -51,89 +70,10 @@ class Category(Enum):
                 return Category.Other
 
 
-class BaseKwargs(TypedDict):
-    id: int
-    game_mode: int
-    lobby_type: int
+class Friend:
+    """Friend."""
 
-
-class MatchBase:
-    def __init__(self, **kwargs: Unpack[BaseKwargs]) -> None:
-        self.id = kwargs.get("id")
-        self.game_mode: GameMode = GameMode.try_value(kwargs.get("game_mode"))
-        self.lobby_type: LobbyType = LobbyType.try_value(kwargs.get("lobby_type"))
-
-    @property
-    def category(self) -> Category:
-        return Category.create(self.lobby_type, self.game_mode)
-
-
-class MinimalMatch(MatchBase):
-    def __init__(self, data: schemas.MinimalMatch) -> None:
-        super().__init__(**data)
-        self.players = [MinimalMatchPlayer(p) for p in data["players"]]
-        self.radiant_score: int = data["radiant_score"]
-        self.dire_score: int = data["dire_score"]
-        self.start_dt: datetime.datetime = datetime.datetime.fromisoformat(data["start_time"])
-        self.duration: datetime.timedelta = datetime.timedelta(seconds=data["duration"])
-
-    @override
-    def __repr__(self) -> str:
-        return f"<MinimalMatch id={self.id}>"
-
-
-class MinimalMatchPlayer:
-    def __init__(self, data: schemas.MinimalMatchPlayer) -> None:
-        self.id = data["id"]
-        self.hero: Hero = Hero.try_value(data["hero_id"])
-        self.kills: int = data["kills"]
-        self.deaths: int = data["deaths"]
-        self.assists: int = data["assists"]
-
-    @override
-    def __repr__(self) -> str:
-        return f"<MinimalMatchPlayer id={self.id} hero={self.hero!r}>"
-
-
-class PreviousMatch(MatchBase):
-    def __init__(self, data: schemas.PreviousMatch) -> None:
-        super().__init__(**data)
-        self.hero: Hero = Hero.try_value(data["hero_id"])
-        self.win: bool = data["win"]
-        self.abandon: bool = data["abandon"]
-        self.start_dt: datetime.datetime = datetime.datetime.fromisoformat(data["start_time"])
-        self.duration: datetime.timedelta = datetime.timedelta(seconds=data["duration"])
-
-    @property
-    def end_dt(self) -> datetime.datetime:
-        return self.start_dt + self.duration
-
-    @override
-    def __repr__(self) -> str:
-        return f"<PreviousMatch id={self.id} hero={self.hero!r} win={self.win}>"
-
-
-class ProfileCard:
-    def __init__(self, data: schemas.ProfileCard) -> None:
-        self.rank_display_name: str = data["rank_display_name"]
-
-    @override
-    def __repr__(self) -> str:
-        return f"<ProfileCard rank={self.rank_display_name}>"
-
-
-class SteamUser:
-    def __init__(self, data: schemas.SteamUser) -> None:
-        self.id: int = data["id"]
-        self.name: str = data["name"]
-
-    @override
-    def __repr__(self) -> str:
-        return f"<SteamUser id={self.id} name={self.name!r}>"
-
-
-class Streamer:
-    def __init__(self, data: schemas.Streamer) -> None:
+    def __init__(self, data: schemas.Friend) -> None:
         self.id: int = data["id"]
         self.name: str = data["name"]
         self.is_playing_dota: bool = data["is_playing_dota"]
@@ -141,10 +81,12 @@ class Streamer:
         self.rich_presence: str = data["rich_presence"]
         self.raw_rich_presence: dict[str, str] = data["raw_rich_presence"]
         self.activity: str = data["activity"]
-        self.live_match: StreamerLiveMatch | None = StreamerLiveMatch(data["live_match"]) if data["live_match"] else None
+        self.live_match: FriendLiveMatch | None = FriendLiveMatch(data["live_match"]) if data["live_match"] else None
 
 
-class StreamerLiveMatch:
+class FriendLiveMatch:
+    """FriendLiveMatch."""
+
     def __init__(self, data: schemas.StreamerLiveMatch) -> None:
         self.id: int | None = data.get("id")
         self.game_mode: GameMode | None = GameMode.try_value(gm) if (gm := data.get("game_mode")) is not None else None
@@ -152,12 +94,14 @@ class StreamerLiveMatch:
         self.tag: str = data["tag"]
         self.message: str = data["message"]
         self.server_steam_id: int | None = data["server_steam_id"]
-        self.players = [StreamerLiveMatchPlayer(p) for p in data["players"]]
+        self.players = [FriendLiveMatchPlayer(p) for p in data["players"]]
         self.average_mmr: int | None = data["average_mmr"]
         self.state: MatchState = data["state"]
 
 
-class StreamerLiveMatchPlayer:
+class FriendLiveMatchPlayer:
+    """FriendLiveMatchPlayer."""
+
     def __init__(self, data: schemas.StreamerLiveMatchPlayer) -> None:
         self.id: int = data["id"]
         self.player_slot: int = data["player_slot"]
@@ -167,6 +111,7 @@ class StreamerLiveMatchPlayer:
 
     @property
     def color(self) -> str:
+        """Color."""
         colors = [
             "Blue",
             "Teal",
@@ -186,7 +131,105 @@ class StreamerLiveMatchPlayer:
 
     @property
     def identifier(self) -> str:
+        """Identifier."""
         return self.hero.name if self.hero else self.color
+
+
+class MatchBaseKwargs(TypedDict):
+    """MatchBaseKwargs."""
+
+    id: int
+    game_mode: int
+    lobby_type: int
+
+
+class MatchBase:
+    """MatchBase."""
+
+    def __init__(self, **kwargs: Unpack[MatchBaseKwargs]) -> None:
+        self.id = kwargs.get("id")
+        self.game_mode: GameMode = GameMode.try_value(kwargs.get("game_mode"))
+        self.lobby_type: LobbyType = LobbyType.try_value(kwargs.get("lobby_type"))
+
+    @property
+    def category(self) -> Category:
+        """Category."""
+        return Category.create(self.lobby_type, self.game_mode)
+
+
+class MinimalMatch(MatchBase):
+    """Minimal."""
+
+    def __init__(self, data: schemas.MinimalMatch) -> None:
+        super().__init__(**data)
+        self.players = [MinimalMatchPlayer(p) for p in data["players"]]
+        self.radiant_score: int = data["radiant_score"]
+        self.dire_score: int = data["dire_score"]
+        self.start_dt: datetime.datetime = datetime.datetime.fromisoformat(data["start_time"])
+        self.duration: datetime.timedelta = datetime.timedelta(seconds=data["duration"])
+
+    @override
+    def __repr__(self) -> str:
+        return f"<MinimalMatch id={self.id}>"
+
+
+class MinimalMatchPlayer:
+    """MinimalMatchPlayer."""
+
+    def __init__(self, data: schemas.MinimalMatchPlayer) -> None:
+        self.id = data["id"]
+        self.hero: Hero = Hero.try_value(data["hero_id"])
+        self.kills: int = data["kills"]
+        self.deaths: int = data["deaths"]
+        self.assists: int = data["assists"]
+
+    @override
+    def __repr__(self) -> str:
+        return f"<MinimalMatchPlayer id={self.id} hero={self.hero!r}>"
+
+
+class PreviousMatch(MatchBase):
+    """PreviousMatch."""
+
+    def __init__(self, data: schemas.PreviousMatch) -> None:
+        super().__init__(**data)
+        self.hero: Hero = Hero.try_value(data["hero_id"])
+        self.win: bool = data["win"]
+        self.abandon: bool = data["abandon"]
+        self.start_dt: datetime.datetime = datetime.datetime.fromisoformat(data["start_time"])
+        self.duration: datetime.timedelta = datetime.timedelta(seconds=data["duration"])
+
+    @property
+    def end_dt(self) -> datetime.datetime:
+        """end_dt."""
+        return self.start_dt + self.duration
+
+    @override
+    def __repr__(self) -> str:
+        return f"<PreviousMatch id={self.id} hero={self.hero!r} win={self.win}>"
+
+
+class ProfileCard:
+    """ProfileCard."""
+
+    def __init__(self, data: schemas.ProfileCard) -> None:
+        self.rank_display_name: str = data["rank_display_name"]
+
+    @override
+    def __repr__(self) -> str:
+        return f"<ProfileCard rank={self.rank_display_name}>"
+
+
+class SteamUser:
+    """SteamUser."""
+
+    def __init__(self, data: schemas.SteamUser) -> None:
+        self.id: int = data["id"]
+        self.name: str = data["name"]
+
+    @override
+    def __repr__(self) -> str:
+        return f"<SteamUser id={self.id} name={self.name!r}>"
 
 
 class LocalAPI:
@@ -234,7 +277,7 @@ class LocalAPI:
         data: schemas.SteamUser = await self._invoke(endpoint=f"/steam_user_convert/{argument}")
         return SteamUser(data)
 
-    async def get_streamer(self, friend_id: int) -> Streamer:
+    async def get_streamer(self, friend_id: int) -> Friend:
         """Get streamer."""
-        data: schemas.Streamer = await self._invoke(endpoint=f"/streamer/{friend_id}")
-        return Streamer(data)
+        data: schemas.Friend = await self._invoke(endpoint=f"/streamer/{friend_id}")
+        return Friend(data)

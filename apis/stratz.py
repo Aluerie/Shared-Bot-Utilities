@@ -1,4 +1,4 @@
-"""Dota 2 API Clients.
+"""Stratz API Clients.
 
 License
 -------

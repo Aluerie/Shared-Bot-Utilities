@@ -1,4 +1,7 @@
-"""7TV Models.
+"""7TV API Wrapper.
+
+Some helper methods and classes wrapping:
+* GraphQL 7TV API
 
 Notices
 -------
@@ -8,13 +11,29 @@ Notices
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, NamedTuple, NotRequired, TypedDict, cast, override
+import asyncio
+import logging
+import re
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, NotRequired, TypedDict, cast, override
 
-from . import exceptions
-from .constants import EMOTE_SET_EMOTES_CAPACITY_LIMIT
+import orjson
+from aiohttp import ClientSession
+
+from shared import errors
 
 if TYPE_CHECKING:
-    from .client import GraphQL7TVClient
+    from collections.abc import Mapping
+
+    from shared.types_ import seven_tv as stv_types
+
+
+__all__ = ("GraphQL7TVClient",)
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+
+
+if TYPE_CHECKING:
 
     class EmotePayload(TypedDict):
         """EmotePayload."""
@@ -39,11 +58,108 @@ if TYPE_CHECKING:
 
 
 __all__ = (
+    "ConflictingEmoteNameError",
     "Emote",
+    "EmoteNotFoundError",
+    "InvalidEmoteAliasError",
+    "InvokeQueryError",
+    "LackingPrivilegesError",
     "PartialEmote",
     "PartialEmoteSet",
     "PartialUser",
+    "ServiceError",
+    "SevenTVError",
+    "SomethingWentWrongError",
+    "UnauthorizedError",
+    "UnsatisfyingResultError",
 )
+
+#############################################################################################################################
+# CONSTANTS
+#############################################################################################################################
+
+
+STV_REQUEST_TIMEOUT = 20
+
+EMOTE_SET_EMOTES_CAPACITY_LIMIT = 1000
+
+
+#############################################################################################################################
+# EXCEPTIONS
+#############################################################################################################################
+
+
+class SevenTVError(errors.CustomError):
+    """Error Class for Seven TV Errors.
+
+    I mean this class to be used for those errors that comes from 7TV API directly, i.e. in `message` field.
+    """
+
+
+class UnauthorizedError(SevenTVError):
+    """Unauthorized."""
+
+    def __init__(
+        self,
+        message: str,
+        **debug_data_kwargs: Any,
+    ) -> None:
+        super().__init__(message)
+        self.message: str = message
+        self.debug_data: dict[str, Any] = debug_data_kwargs
+
+
+class InvokeQueryError(SevenTVError):
+    """TransportQueryError."""
+
+    def __init__(self, status: Any, message: Any, code: Any) -> None:
+        self.status = status
+        self.message = message
+        self.code = code
+        super().__init__(f"{status} {message}")
+
+
+class UnsatisfyingResultError(SevenTVError):
+    """UnsatisfyingResultError."""
+
+
+class ServiceError(UnsatisfyingResultError):
+    """Service Error."""
+
+
+class EmoteNotFoundError(UnsatisfyingResultError):
+    """Emote Not Found In Set Error."""
+
+
+class ConflictingEmoteNameError(UnsatisfyingResultError):
+    """Conflicting Emote Name Error."""
+
+
+class LackingPrivilegesError(UnsatisfyingResultError):
+    """Lacking Privileges Error."""
+
+
+class InvalidEmoteAliasError(UnsatisfyingResultError):
+    """Invalid Emote Alias Error."""
+
+
+class SomethingWentWrongError(SevenTVError):
+    """SomethingWentWrongError."""
+
+    def __init__(
+        self,
+        message: str,
+        **debug_data_kwargs: Any,
+    ) -> None:
+        super().__init__(message)
+        self.message: str = message
+        self.debug_data: dict[str, Any] = debug_data_kwargs
+
+
+#############################################################################################################################
+# MODELS
+#############################################################################################################################
+
 
 COMMON_EMOTE_SUB_QUERY = """
 id
@@ -216,7 +332,7 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
         emote = res["emotes"]["emote"]["inEmoteSets"][0]["emote"]
         if emote is None:
             msg = f"Could not find {emote_id} in emote set {self.id}"
-            raise exceptions.EmoteNotFoundError(msg)
+            raise EmoteNotFoundError(msg)
         return emote["alias"]
 
     async def remove_emote(self, emote_id: str) -> None:
@@ -246,10 +362,10 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
         }
         try:
             await self._client.invoke(query, variables=variables)
-        except exceptions.InvokeQueryError as error:
+        except InvokeQueryError as error:
             if error.message == "BAD_REQUEST emote not found in set":
                 msg = "Emote was not found in set"
-                raise exceptions.EmoteNotFoundError(msg) from None
+                raise EmoteNotFoundError(msg) from None
             raise
 
     async def add_emote(
@@ -284,24 +400,24 @@ mutation EmoteSetAddEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteId!)
         }
         try:
             await self._client.invoke(query, variables)
-        except exceptions.InvokeQueryError as error:
+        except InvokeQueryError as error:
             match error.message:
                 case "BAD_REQUEST this emote has a conflicting name":
                     try:
                         # TODO: Maybe remove this, why do we do an extra request
                         await self.fetch_emote_alias(emote_id)
-                    except exceptions.EmoteNotFoundError:
+                    except EmoteNotFoundError:
                         msg = "This emote has a conflicting name"
-                        raise exceptions.ConflictingEmoteNameError(msg) from None
+                        raise ConflictingEmoteNameError(msg) from None
                     else:
                         msg = "This emote is already present in the emote set"
-                        raise exceptions.UnsatisfyingResultError(msg) from None
+                        raise UnsatisfyingResultError(msg) from None
                 case m if "invalid emote alias" in m:
                     msg = "Invalid emote alias"
-                    raise exceptions.InvalidEmoteAliasError(msg) from None
+                    raise InvalidEmoteAliasError(msg) from None
                 case "LOAD_ERROR emote set is at capacity":
                     msg = "Emote set is at full capacity"
-                    raise exceptions.UnsatisfyingResultError(msg) from None
+                    raise UnsatisfyingResultError(msg) from None
                 case _:
                     raise
 
@@ -330,17 +446,17 @@ mutation EmoteSetRenameEmote($emoteSetId: Id!, $emoteIdWithAlias: EmoteSetEmoteI
         }
         try:
             await self._client.invoke(query, variables)
-        except exceptions.InvokeQueryError as error:
+        except InvokeQueryError as error:
             match error.message:
                 case "BAD_REQUEST emote name conflict":
                     msg = "Emote name conflict"
-                    raise exceptions.ConflictingEmoteNameError(msg) from None
+                    raise ConflictingEmoteNameError(msg) from None
                 case "BAD_REQUEST emote not found in set":
                     msg = "Emote not found in the emote set"
-                    raise exceptions.EmoteNotFoundError(msg) from None
+                    raise EmoteNotFoundError(msg) from None
                 case m if "invalid emote alias" in m:
                     msg = "Invalid emote alias"
-                    raise exceptions.InvalidEmoteAliasError(msg) from None
+                    raise InvalidEmoteAliasError(msg) from None
                 case _:
                     raise
 
@@ -384,7 +500,7 @@ query GetWhoAdded($emoteSetId: Id!, $emoteId: Id!) {
         except TypeError, KeyError, IndexError:
             # this means res["emotes"]["emote"] is null
             msg = "Emote not found"
-            raise exceptions.EmoteNotFoundError(msg) from None
+            raise EmoteNotFoundError(msg) from None
 
 
 class PartialUser:
@@ -453,7 +569,7 @@ query UserSearchEmote($platformId: String!, $emoteName: String) {
         candidate = next((c for c in candidates if c["alias"] == emote_name), None)
         if candidate is None:
             msg = f"Could not find an emote named '{emote_name}' in the streamer emotes; probably invalid emote input"
-            raise exceptions.UnsatisfyingResultError(msg)
+            raise UnsatisfyingResultError(msg)
         return PartialEmote(self._client, candidate["id"])
 
     async def check_bot_editor(self) -> EditorCheck:
@@ -491,7 +607,7 @@ query GetUserEditors($platformId: String!) {
         )
         if bot_editor is None:
             msg = "The bot is yet to receive a 7tv editor request from the streamer"
-            raise exceptions.UnsatisfyingResultError(msg)
+            raise UnsatisfyingResultError(msg)
 
         return EditorCheck(bot_editor)
 
@@ -542,7 +658,7 @@ mutation UpdateEditorState($userId: Id!, $editorId: Id!, $state: UserEditorUpdat
 
         try:
             res = await self._client.invoke(query, variables)
-        except exceptions.InvokeQueryError as error:
+        except InvokeQueryError as error:
             match error.message:
                 case "BAD_REQUEST editor is not pending":
                     msg = (
@@ -550,10 +666,10 @@ mutation UpdateEditorState($userId: Id!, $editorId: Id!, $state: UserEditorUpdat
                         if (await self.check_bot_editor()).state == "ACCEPTED"
                         else "7TV editor request is not pending"
                     )
-                    raise exceptions.UnsatisfyingResultError(msg) from None
+                    raise UnsatisfyingResultError(msg) from None
                 case "LOAD_ERROR user editor not found":
                     msg = "I don't see any 7TV editor requests from this streamer (have you sent it?)"
-                    raise exceptions.UnsatisfyingResultError(msg) from None
+                    raise UnsatisfyingResultError(msg) from None
                 case _:
                     raise
 
@@ -604,3 +720,196 @@ class UserInfo(NamedTuple):
 class EmoteSetInfo(NamedTuple):
     name: str
     owner_id: str
+
+
+#############################################################################################################################
+# CLIENT
+#############################################################################################################################
+
+
+class GraphQL7TVClient:
+    """Seven TV GraphQL API Wrapper.
+
+    This class offers a few methods to perform some common operations with 7TV.
+    Such as add, remove, find emote and many more.
+    This class uses V4 GQL Endpoint: https://api.7tv.app/v4/gql
+
+    Most of operations here rely on @IrenesBot's 7TV account as they are performed with its Bearer Token.
+
+    Links
+    -----
+    * https://7tv.app/api/docs
+        7TV API Docs
+    * https://7tv.io/v4/gql/playground
+        7TV GraphQL playground.
+    * https://github.com/SevenTV/SevenTV/issues/216
+        Remember to search in their issues for some examples of GraphQL requests/responses.
+
+    Parameters
+    ----------
+    token: str
+        Bearer Token for Seven TV API usage.
+    session: ClientSession | None = None
+        If provided, then the wrapper will use it as its session calls.
+        Otherwise, it will create a new `ClientSession` on every API call.
+    """
+
+    def __init__(
+        self,
+        *,
+        bot_7tv_user_id: str,
+        bearer_token: str | None = None,
+    ) -> None:
+        self._bearer_token: str | None = bearer_token
+        self.user_id: str = bot_7tv_user_id
+        self.session = ClientSession()
+
+    async def invoke(self, query: str, variables: Mapping[str, Any]) -> Any:
+        """Invoke a request to 7TV GraphQL API.
+
+        Parameters
+        ----------
+        query: str
+            GraphQL query.
+        variables: Mapping[str, Any]
+            (Mapping[str, Any] is type-hinting crunch to be compatible with TypedDict, this is supposed to be dict[str, Any])
+            Dictionary of variables to be provided with query into `json` kwarg of GraphQL request.
+
+        Returns
+        -------
+        dict[str, Any]
+            GraphQL json dictionary from the response. Usually heavily nested.
+        """
+        match = re.search(r"^\s*(?:query|mutation)\s+(?P<query_name>\w+)\s*(?:\(|\{)", query)
+        query_name = match.group("query_name") if match else "UnknownQuery"
+        log.debug("7TV GraphQL - invoking query %s", query_name)
+
+        try:
+            async with (
+                asyncio.timeout(STV_REQUEST_TIMEOUT),
+                (self.session).post(
+                    url="https://api.7tv.app/v4/gql",
+                    json={"query": query, "variables": variables},
+                    headers={"Authorization": f"Bearer {self._bearer_token}"} if self._bearer_token is not None else None,
+                ) as response,
+            ):
+                if response.ok:
+                    gql_json = await response.json(loads=orjson.loads)
+                else:
+                    msg = "7TV is unavailable/lagging/down"
+                    log.warning(
+                        "7TV response to %s was not ok. Status: %s Text:\n%s",
+                        query_name,
+                        response.status,
+                        await response.text(),
+                    )
+                    raise ServiceError(msg) from None
+        except TimeoutError:
+            msg = "7TV is lagging, it didn't respond in time; try again later?"
+            raise ServiceError(msg) from None
+
+        match gql_json:
+            case {"data": data} if data:
+                return data
+            case {"errors": gql_errors} if gql_errors:
+                error = gql_errors[0]
+                # This way we are only raising error corresponding to the first error in the gql_json
+                # but we are okay with that, I think.
+                extensions = error.get("extensions", {})
+                raise InvokeQueryError(
+                    status=extensions.get("status", "???"),
+                    message=error.get("message", ""),
+                    code=extensions.get("code", "UNKNOWN_CODE"),
+                )
+            case {"status": status} if status == "Unauthorized":
+                # If bearer token expired -
+                # 7TV sends {'status': 'Unauthorized', 'error_code': 1000, 'error': 'invalid session'}
+                msg = (
+                    "It seems The bot's 7TV Bearer Token is expired. Irene, please, grab a new one via dev tools or "
+                    "figure out how to make the bot automatically refresh it."
+                )
+                raise UnauthorizedError(msg, gql_json=gql_json)
+            case _:
+                msg = "Something went wrong"
+                raise SomethingWentWrongError(msg, gql_json=gql_json)
+
+    def create_partial_emote(self, emote_id: str) -> PartialEmote:
+        """Create partial emote."""
+        return PartialEmote(self, emote_id)
+
+    def create_partial_emote_set(self, emote_set_id: str) -> PartialEmoteSet:
+        """Create partial emote set."""
+        return PartialEmoteSet(self, emote_set_id)
+
+    def create_partial_user(self, twitch_id: str) -> PartialUser:
+        """Create partial user."""
+        return PartialUser(self, twitch_id)
+
+    async def search_emote(self, emote_name: str, index: int = 0) -> PartialEmote:
+        """Search Emote by name."""
+        if index < 0:
+            msg = "Negative index is not allowed"
+            raise UnsatisfyingResultError(msg)
+
+        query = """
+query TopSearchByEmoteName($emoteName: String) {
+  emotes {
+    search(
+      query: $emoteName
+      sort: {sortBy: TOP_ALL_TIME, order: DESCENDING}
+      filters: {exactMatch: true}
+    ) {
+      items {
+        id
+        defaultName
+      }
+    }
+  }
+}
+        """
+        variables = {"emoteName": emote_name}
+        res: stv_types.TopSearchByEmoteName = await self.invoke(query, variables)
+        # For some reason "exactMatch": true filter still allows difference capitalizations so we still have to `==`.
+        emote_items = sorted(
+            res["emotes"]["search"]["items"],
+            key=lambda item: item["defaultName"] == emote_name,
+            reverse=True,
+        )
+        try:
+            return PartialEmote(self, emote_id=emote_items[index]["id"])
+        except IndexError:
+            msg = f"Search result doesn't have that many emotes (only {len(emote_items)} total)"
+            raise EmoteNotFoundError(msg) from None
+
+    async def fetch_emote(self, emote_id: str) -> Emote:
+        """Get defaultName for an emote.
+
+        Parameters
+        ----------
+        emote_id: str
+            7TV emote id.
+
+        Returns
+        -------
+        Emote
+            Seven TV Emote.
+        """
+        return await PartialEmote(self, emote_id).fetch()
+
+    async def get_display_name_by_stv_id(self, stv_id: str) -> str:
+        """Get user by stv id."""
+        query = """
+query GetUserInfo($userId: Id!) {
+  users {
+    user(id: $userId) {
+      mainConnection {
+        platformId
+        platformDisplayName
+      }
+    }
+  }
+}
+"""
+        variables = {"userId": stv_id}
+        res = await self.invoke(query, variables)
+        return res["users"]["user"]["mainConnection"]["platformDisplayName"]

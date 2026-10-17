@@ -1,4 +1,4 @@
-"""Dota 2 API Clients.
+"""Opendota API Wrapper.
 
 License
 -------
