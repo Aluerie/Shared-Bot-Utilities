@@ -25,15 +25,15 @@ class BotBase:
         self,
         session: aiohttp.ClientSession,
         *,
-        role_mention: str,
-        error_webhook: str,
-        notification_webhook: str,
+        ping_role_mention: str,
+        error_webhook_url: str,
+        notification_webhook_url: str,
     ) -> None:
         self.session: aiohttp.ClientSession = session
-        self.role_mention: str = role_mention
-        self._notification_webhook_url: str = notification_webhook
+        self.ping_role_mention: str = ping_role_mention
+        self._notification_webhook_url: str = notification_webhook_url
 
-        self.error_notification_manager = ErrorNotificationManager(self, error_webhook)
+        self.error_notification_manager = ErrorNotificationManager(self, error_webhook_url)
 
     def webhook_from_url(self, url: str) -> discord.Webhook:
         """Shortcut to discord.Webhook.from_url with some filled args."""
@@ -54,5 +54,5 @@ class BotBase:
         send_kwargs: Any
             Kwargs for `webhook.send` method. Look for supported argument in `discord.Webhook.send` method.
         """
-        content = f"{self.role_mention}\n{content}"
+        content = f"{self.ping_role_mention}\n{content}"
         await self.notification_webhook.send(content, **send_kwargs)
