@@ -17,8 +17,8 @@ from typing import TYPE_CHECKING, ClassVar, override
 import discord
 from discord.utils import MISSING
 
-from core import ireloop
 from shared import clock
+from shared.concepts import loop
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
@@ -133,7 +133,7 @@ class DiscordWebhookLogs:
             avatar_url=self.get_avatar(record.name),
         )
 
-    @ireloop(seconds=0.0)
+    @loop(seconds=0.0)
     async def logging_worker(self) -> None:
         """Task responsible for mirroring logging messages to a discord webhook."""
         record = await self._logging_queue.get()

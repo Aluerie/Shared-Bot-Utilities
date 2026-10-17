@@ -22,7 +22,10 @@ import discord
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-__all__ = ("setup_logging",)
+__all__ = (
+    "PrefixLoggerAdapter",
+    "setup_logging",
+)
 
 logging.Formatter.converter = time.gmtime
 
@@ -153,6 +156,11 @@ def get_logging_formatter(handler: logging.Handler) -> logging.Formatter:
 
 
 class PrefixLoggerAdapter(logging.LoggerAdapter[Any]):
+    """Logger Adapter that simply adds a prefix to the log message.
+
+    I like having same module logs having same emoji as some sort of identifier.
+    """
+
     def __init__(self, logger: logging.Logger, prefix: str) -> None:
         super().__init__(logger)
         self.prefix = prefix
