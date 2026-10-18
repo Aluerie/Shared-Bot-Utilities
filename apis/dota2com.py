@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from shared.types_ import dota2com as schemas
 
 
-__all__ = ("Dota2DatafeedClient",)
+__all__ = ("Dota2comClient",)
 
 log = logging.getLogger(__name__)
 
@@ -49,7 +49,6 @@ class Dota2comClient:
         """Invoke a request to OpenDota API."""
         queries = "&".join(f"{k}={v}" for k, v in query_kwargs.items())
         url = f"https://www.dota2.com/{endpoint}?{queries}"
-        print(url)
         async with self.session.get(url=url) as resp:
             return await resp.json(loads=orjson.loads)
 

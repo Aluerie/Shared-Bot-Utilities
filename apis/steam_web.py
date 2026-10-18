@@ -20,7 +20,7 @@ from steam.ext.dota2 import GameMode, Hero, LobbyType
 from shared import errors
 
 if TYPE_CHECKING:
-    import aiohttp
+    from aiohttp import ClientSession
 
     from shared.types_ import steam_web_api as schemas
 
@@ -75,8 +75,8 @@ class SteamWebAPIClient:
 
     """
 
-    def __init__(self, *, api_key: str, session: aiohttp.ClientSession) -> None:
-        self.session = session
+    def __init__(self, *, api_key: str, session: ClientSession) -> None:
+        self.session: ClientSession = session
         self.api_key: str = api_key
 
     async def _invoke(self, endpoint: str, **kwargs: Any) -> Any:
@@ -86,11 +86,8 @@ class SteamWebAPIClient:
         max_failures = 10
         for attempt in range(max_failures):
             async with self.session.get(url) as resp:
-                # encoding='utf-8' errored out one day, it seems Valve have misconfigured some servers' content types
-                # Or maybe they have to because all the unique characters in player names?
-                # I'm not sure if this "ISO-8859-1" encoding solves all problems;
-                # meta shows utf-8 though so idk.
-                result = await resp.json(loads=orjson.loads, content_type=None, encoding="ISO-8859-1")
+                # encoding='utf-8' errored out one day, it seems Valve have misconfigured some servers' content types?
+                result = await resp.json(loads=orjson.loads)
                 if result:
                     break
                 # Valve, why does it return an empty dict `{}` on the very first request for every match...
