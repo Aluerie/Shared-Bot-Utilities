@@ -14,7 +14,7 @@ from dateutil.relativedelta import relativedelta
 from .fmt import plural
 
 #############################################################################################################################
-# Get time
+# GET TIME
 #############################################################################################################################
 
 
@@ -144,7 +144,7 @@ def human_datetime_diff(
     when: dt.datetime,
     *,
     relative_to: dt.datetime | None = None,
-    max_units: int | None = 3,
+    max_units: int | None = 2,
     mode: HumanTimedeltaMode = "full",
     suffix: bool = False,
 ) -> str:
@@ -245,7 +245,7 @@ def human_timedelta(
     hours: int | None = None,
     minutes: int | None = None,
     seconds: int | None = None,
-    max_units: int | None = 3,
+    max_units: int | None = 2,
     mode: HumanTimedeltaMode = "full",
 ) -> str:
     """Convert timestamp to human readable words.
