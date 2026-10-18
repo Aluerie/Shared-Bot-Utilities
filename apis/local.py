@@ -189,7 +189,7 @@ class MinimalMatchPlayer:
 
 
 class PreviousMatch(MatchBase):
-    """MatchHistoryMatch."""
+    """PreviousMatch."""
 
     def __init__(self, data: schemas.PreviousMatch) -> None:
         super().__init__(**data)
@@ -206,7 +206,7 @@ class PreviousMatch(MatchBase):
 
     @override
     def __repr__(self) -> str:
-        return f"<MatchHistoryMatch id={self.id} hero={self.hero!r} win={self.win}>"
+        return f"<PreviousMatch id={self.id} hero={self.hero!r} win={self.win}>"
 
 
 class ProfileCard:

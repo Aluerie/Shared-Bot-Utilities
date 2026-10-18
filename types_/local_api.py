@@ -14,8 +14,8 @@ from shared.apis.local import MatchState  # ruff: ignore[typing-only-first-party
 
 __all__ = (
     "Friend",
-    "MatchHistoryMatch",
     "MinimalMatch",
+    "PreviousMatch",
     "ProfileCard",
     "SteamUser",
 )
