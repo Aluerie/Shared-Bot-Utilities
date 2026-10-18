@@ -19,7 +19,7 @@ Notices
 
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 from enum import Enum, IntEnum
 from typing import TYPE_CHECKING, Any, TypedDict, Unpack, override
 
@@ -165,8 +165,8 @@ class MinimalMatch(MatchBase):
         self.players = [MinimalMatchPlayer(p) for p in data["players"]]
         self.radiant_score: int = data["radiant_score"]
         self.dire_score: int = data["dire_score"]
-        self.start_dt: datetime.datetime = datetime.datetime.fromisoformat(data["start_time"])
-        self.duration: datetime.timedelta = datetime.timedelta(seconds=data["duration"])
+        self.start_dt: dt.datetime = dt.datetime.fromisoformat(data["start_time"])
+        self.duration: dt.timedelta = dt.timedelta(seconds=data["duration"])
 
     @override
     def __repr__(self) -> str:
@@ -196,11 +196,11 @@ class PreviousMatch(MatchBase):
         self.hero: Hero = Hero.try_value(data["hero_id"])
         self.win: bool = data["win"]
         self.abandon: bool = data["abandon"]
-        self.start_dt: datetime.datetime = datetime.datetime.fromisoformat(data["start_time"])
-        self.duration: datetime.timedelta = datetime.timedelta(seconds=data["duration"])
+        self.start_dt: dt.datetime = dt.datetime.fromisoformat(data["start_time"])
+        self.duration: dt.timedelta = dt.timedelta(seconds=data["duration"])
 
     @property
-    def end_dt(self) -> datetime.datetime:
+    def end_dt(self) -> dt.datetime:
         """end_dt."""
         return self.start_dt + self.duration
 

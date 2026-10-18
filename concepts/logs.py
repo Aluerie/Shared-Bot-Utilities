@@ -117,7 +117,7 @@ class MyColourFormatter(logging.Formatter):
         if formatter is None:
             formatter = self.FORMATS[logging.DEBUG]
 
-        if record.exc_info:
+        if bool(record.exc_info):
             # ORIGINAL discord.py:
             # Override the traceback to always print in red
             # text = formatter.formatException(record.exc_info)

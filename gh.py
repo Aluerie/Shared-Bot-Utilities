@@ -8,7 +8,7 @@ Notices
 
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 import itertools
 import os
 import re
@@ -119,8 +119,8 @@ class CommitInfo:
     id: pygit2.Oid
     short_title: str
     short_sha2: str
-    utc_dt: datetime.datetime
-    tz: datetime.timezone
+    utc_dt: dt.datetime
+    tz: dt.timezone
 
     @property
     def emojified_title(self) -> str | None:
@@ -139,7 +139,7 @@ class CommitInfo:
         )
 
     @property
-    def dt_as_tz(self) -> datetime.datetime:
+    def dt_as_tz(self) -> dt.datetime:
         """Datetime `self.utc_dt` (UTC commit time creation) as `.astimezone`."""
         return self.utc_dt.astimezone(self.tz)
 
@@ -159,8 +159,8 @@ def get_commit_info(repo: pygit2.repository.Repository, commit: pygit2.Commit) -
         id=commit.id,
         short_title=short[0:50] + "..." if len(short) > 50 else short,
         short_sha2=str(commit.id)[0:7],
-        utc_dt=datetime.datetime.fromtimestamp(commit.commit_time).astimezone(datetime.UTC),
-        tz=datetime.timezone(datetime.timedelta(minutes=commit.commit_time_offset)),
+        utc_dt=dt.datetime.fromtimestamp(commit.commit_time).astimezone(dt.UTC),
+        tz=dt.timezone(dt.timedelta(minutes=commit.commit_time_offset)),
     )
 
 

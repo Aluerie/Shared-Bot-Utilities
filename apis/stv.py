@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, NotRequired, TypedDict, cast, override
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, NotRequired, TypedDict, override
 
 import orjson
 from aiohttp import ClientSession
@@ -25,15 +25,6 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from shared.types_ import seven_tv as stv_types
-
-
-__all__ = ("GraphQL7TVClient",)
-
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-
-
-if TYPE_CHECKING:
 
     class EmotePayload(TypedDict):
         """EmotePayload."""
@@ -61,6 +52,7 @@ __all__ = (
     "ConflictingEmoteNameError",
     "Emote",
     "EmoteNotFoundError",
+    "EmoteSetEmote",
     "InvalidEmoteAliasError",
     "InvokeQueryError",
     "LackingPrivilegesError",
@@ -70,9 +62,14 @@ __all__ = (
     "ServiceError",
     "SevenTVError",
     "SomethingWentWrongError",
+    "StvGraphQLClient",
     "UnauthorizedError",
     "UnsatisfyingResultError",
 )
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+
 
 #############################################################################################################################
 # CONSTANTS
@@ -173,8 +170,8 @@ flags {
 class PartialEmote:
     """Partial Emote."""
 
-    def __init__(self, client: GraphQL7TVClient, emote_id: str) -> None:
-        self._client: GraphQL7TVClient = client
+    def __init__(self, client: StvGraphQLClient, emote_id: str) -> None:
+        self._client: StvGraphQLClient = client
         self.id: str = emote_id
         self._animated: bool | None = None
 
@@ -224,7 +221,7 @@ class PartialEmote:
 class Emote(PartialEmote):
     """Emote."""
 
-    def __init__(self, client: GraphQL7TVClient, data: EmotePayload) -> None:
+    def __init__(self, client: StvGraphQLClient, data: EmotePayload) -> None:
         super().__init__(client, data.get("id"))
         self.owner_id: str = data.get("ownerId")
         self.default_name: str = data.get("defaultName")
@@ -241,7 +238,7 @@ class EmoteSetEmote:
 
     def __init__(
         self,
-        client: GraphQL7TVClient,
+        client: StvGraphQLClient,
         alias: str,
         emote: str | PartialEmote | Emote,
         emote_set: str | PartialEmoteSet,
@@ -263,8 +260,8 @@ class EmoteSetEmote:
 class PartialEmoteSet:
     """Partial Emote Set."""
 
-    def __init__(self, client: GraphQL7TVClient, emote_set_id: str) -> None:
-        self._client: GraphQL7TVClient = client
+    def __init__(self, client: StvGraphQLClient, emote_set_id: str) -> None:
+        self._client: StvGraphQLClient = client
         self.id: str = emote_set_id
 
     @override
@@ -476,7 +473,7 @@ query FetchEmoteSetInfo($emoteSetId: Id!) {
             variables={"emoteSetId": self.id},
         )
         emote_set = res["emoteSets"]["emoteSet"]
-        return EmoteSetInfo(name=emote_set["name"], owner_id=emote_set["emoteId"])
+        return EmoteSetInfo(name=emote_set["name"], owner_id=emote_set["ownerId"])
 
     async def get_emote_added_by(self, emote_id: str) -> str:
         """Get emote added by."""
@@ -506,8 +503,8 @@ query GetWhoAdded($emoteSetId: Id!, $emoteId: Id!) {
 class PartialUser:
     """Partial Emote Set."""
 
-    def __init__(self, client: GraphQL7TVClient, twitch_id: str) -> None:
-        self._client: GraphQL7TVClient = client
+    def __init__(self, client: StvGraphQLClient, twitch_id: str) -> None:
+        self._client: StvGraphQLClient = client
         self.twitch_id: str = twitch_id
 
     async def fetch_active_emote_set(self) -> PartialEmoteSet:
@@ -536,8 +533,8 @@ class PartialUser:
 
         Returns
         -------
-        str
-            Emote ID that matches provided `emote_name` in the active emote set for the broadcaster.
+        PartialEmote
+            Emote that matches provided `emote_name` in the broadcaster's active emote set.
         """
         query: str = """
 query UserSearchEmote($platformId: String!, $emoteName: String) {
@@ -574,10 +571,8 @@ query UserSearchEmote($platformId: String!, $emoteName: String) {
 
     async def check_bot_editor(self) -> EditorCheck:
         """Check bot editor for."""
-        res: GetUserEditors = cast(
-            "GetUserEditors",
-            await self._client.invoke(
-                query="""
+        res: GetUserEditors = await self._client.invoke(
+            query="""
 query GetUserEditors($platformId: String!) {
   users {
     userByConnection(platform: TWITCH, platformId: $platformId) {
@@ -594,20 +589,17 @@ query GetUserEditors($platformId: String!) {
   }
 }
 """,
-                variables={"platformId": self.twitch_id},
-            ),
+            variables={"platformId": self.twitch_id},
         )
-        bot_editor = next(
-            iter([
+        try:
+            bot_editor = next(
                 editor
                 for editor in res["users"]["userByConnection"]["editors"]
                 if editor["editorId"] == self._client.user_id
-            ]),
-            None,
-        )
-        if bot_editor is None:
+            )
+        except StopIteration:
             msg = "The bot is yet to receive a 7tv editor request from the streamer"
-            raise UnsatisfyingResultError(msg)
+            raise UnsatisfyingResultError(msg) from None
 
         return EditorCheck(bot_editor)
 
@@ -727,7 +719,7 @@ class EmoteSetInfo(NamedTuple):
 #############################################################################################################################
 
 
-class GraphQL7TVClient:
+class StvGraphQLClient:
     """Seven TV GraphQL API Wrapper.
 
     This class offers a few methods to perform some common operations with 7TV.

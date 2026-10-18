@@ -9,7 +9,7 @@ License
 from __future__ import annotations
 
 import asyncio
-import datetime
+import datetime as dt
 import itertools
 import logging
 from typing import TYPE_CHECKING, Any, TypedDict
@@ -37,9 +37,7 @@ class RealTimeStats:
         self.id = int(data["match"]["match_id"])
         self.lobby_type: LobbyType = LobbyType.try_value(data["match"]["lobby_type"])
         self.game_mode: GameMode = GameMode.try_value(data["match"]["game_mode"])
-        self.started_at: datetime.datetime = datetime.datetime.fromtimestamp(
-            data["match"]["start_timestamp"], tz=datetime.UTC
-        )
+        self.started_at: dt.datetime = dt.datetime.fromtimestamp(data["match"]["start_timestamp"], tz=dt.UTC)
         self.players = [
             RealTimeStatsPlayer(p) for p in itertools.chain(data["teams"][0]["players"], data["teams"][1]["players"])
         ]

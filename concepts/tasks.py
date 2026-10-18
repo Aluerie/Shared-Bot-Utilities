@@ -20,7 +20,7 @@ from discord.ext import tasks
 from discord.utils import MISSING
 
 if TYPE_CHECKING:
-    import datetime
+    import datetime as dt
 
     from .error_notifications import ErrorNotificationManager
 
@@ -72,7 +72,7 @@ class Loop(tasks.Loop[LF]):
         seconds: float,
         hours: float,
         minutes: float,
-        time: datetime.time | Sequence[datetime.time],
+        time: dt.time | Sequence[dt.time],
         count: int | None,
         *,
         reconnect: bool,
@@ -115,7 +115,7 @@ def loop(
 @overload
 def loop(
     *,
-    time: datetime.time | Sequence[datetime.time],
+    time: dt.time | Sequence[dt.time],
     count: int | None = None,
     reconnect: bool = True,
     name: str | None = None,
@@ -129,7 +129,7 @@ def loop(
     seconds: float = MISSING,
     minutes: float = MISSING,
     hours: float = MISSING,
-    time: datetime.time | Sequence[datetime.time] = MISSING,
+    time: dt.time | Sequence[dt.time] = MISSING,
     count: int | None = None,
     reconnect: bool = True,
     name: str | None = None,
