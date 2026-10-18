@@ -281,3 +281,8 @@ class LocalAPI:
         """Get steam id. Converts ID from ID/URL to friend ID."""
         data: schemas.SteamUser = await self._invoke(endpoint=f"/steam_user_convert/{argument}")
         return SteamUser(data)
+
+    async def get_accept_invite(self, friend_id: str, twitch_id: str) -> SteamUser:
+        """Get steam id and add it pending invites. Converts ID from ID/URL to friend ID."""
+        data: schemas.SteamUser = await self._invoke(endpoint=f"/accept_invite/?friend_id={friend_id}&twitch_id={twitch_id}")
+        return SteamUser(data)
