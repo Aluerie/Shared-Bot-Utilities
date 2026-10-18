@@ -63,7 +63,7 @@ class MinimalMatchPlayer(TypedDict):
     assists: int
 
 
-class MatchHistoryMatch(TypedDict):
+class PreviousMatch(TypedDict):
     """/match_history/{friend_id} Endpoint."""
 
     id: int

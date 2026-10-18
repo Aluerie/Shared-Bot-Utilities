@@ -1,5 +1,12 @@
 """Opendota API Wrapper.
 
+Links
+-----
+* https://docs.opendota.com/
+* https://www.opendota.com/
+* https://github.com/odota
+
+
 License
 -------
 * MPL-2.0 License, see LICENSE file for more details.
@@ -9,7 +16,7 @@ License
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any
 
 import orjson
 
@@ -18,12 +25,25 @@ if TYPE_CHECKING:
 
     from shared.types_ import opendota as schemas
 
-    class GraphQLData(TypedDict):
-        data: Any
-
 
 __all__ = ("OpenDotaClient",)
 log = logging.getLogger(__name__)
+
+
+class Match:
+    def __init__(self, data: schemas.Matches) -> None:
+        self.id = data["match_id"]
+        self.players = [MatchPlayer(p) for p in data["players"]]
+
+
+class MatchPlayer:
+    def __init__(self, data: schemas.MatchesPlayer) -> None:
+        try:
+            id_ = data["account_id"]
+        except KeyError:
+            # If person has expose data off - their ID just not included in the response
+            id_ = None
+        self.id: int | None = id_
 
 
 class OpenDotaClient:
@@ -38,9 +58,10 @@ class OpenDotaClient:
         async with self.session.get(url=url) as resp:
             return await resp.json(loads=orjson.loads)
 
-    async def matches(self, match_id: int) -> schemas.Matches:
+    async def matches(self, match_id: int) -> Match:
         """Get match from opendota API via GET matches endpoint."""
-        return await self._invoke(f"matches/{match_id}")
+        data: schemas.Matches = await self._invoke(f"matches/{match_id}")
+        return Match(data)
 
     async def get_items(self) -> schemas.ItemsQuery:
         """Get Opendota constants items.
