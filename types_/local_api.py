@@ -14,8 +14,8 @@ from shared.apis.local import MatchState  # ruff: ignore[typing-only-first-party
 
 __all__ = (
     "Friend",
+    "MatchHistoryMatch",
     "MinimalMatch",
-    "PreviousMatch",
     "ProfileCard",
     "SteamUser",
 )
@@ -63,8 +63,8 @@ class MinimalMatchPlayer(TypedDict):
     assists: int
 
 
-class PreviousMatch(TypedDict):
-    """/previous_match/{friend_id} Endpoint."""
+class MatchHistoryMatch(TypedDict):
+    """/match_history/{friend_id} Endpoint."""
 
     id: int
     hero_id: int  # Hero

@@ -188,10 +188,10 @@ class MinimalMatchPlayer:
         return f"<MinimalMatchPlayer id={self.id} hero={self.hero!r}>"
 
 
-class PreviousMatch(MatchBase):
-    """PreviousMatch."""
+class MatchHistoryMatch(MatchBase):
+    """MatchHistoryMatch."""
 
-    def __init__(self, data: schemas.PreviousMatch) -> None:
+    def __init__(self, data: schemas.MatchHistoryMatch) -> None:
         super().__init__(**data)
         self.hero: Hero = Hero.try_value(data["hero_id"])
         self.win: bool = data["win"]
@@ -206,7 +206,7 @@ class PreviousMatch(MatchBase):
 
     @override
     def __repr__(self) -> str:
-        return f"<PreviousMatch id={self.id} hero={self.hero!r} win={self.win}>"
+        return f"<MatchHistoryMatch id={self.id} hero={self.hero!r} win={self.win}>"
 
 
 class ProfileCard:
@@ -267,10 +267,10 @@ class LocalAPI:
         data = await self._invoke(endpoint=f"/profile_card/{friend_id}")
         return ProfileCard(data)
 
-    async def get_previous_match(self, friend_id: int) -> PreviousMatch:
-        """Get previous match."""
-        data: schemas.PreviousMatch = await self._invoke(endpoint=f"/previous_match/{friend_id}")
-        return PreviousMatch(data)
+    async def get_match_history(self, friend_id: int) -> list[MatchHistoryMatch]:
+        """Get match history."""
+        data: list[schemas.MatchHistoryMatch] = await self._invoke(endpoint=f"/match_history/{friend_id}")
+        return [MatchHistoryMatch(d) for d in data]
 
     async def get_steam_user(self, friend_id: int) -> SteamUser:
         """Get steam user."""
