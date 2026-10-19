@@ -8,6 +8,9 @@ Notices
 
 from __future__ import annotations
 
+import logging
+from pathlib import Path
+from pkgutil import iter_modules
 from typing import TYPE_CHECKING, Any
 
 import discord
@@ -18,6 +21,18 @@ from .error_notifications import ErrorNotificationManager
 
 if TYPE_CHECKING:
     import aiohttp
+
+try:
+    from subset import SUBSET  # ty: ignore[unresolved-import, unused-ignore-comment, unused-ignore-comment]
+except ModuleNotFoundError:
+    SUBSET: dict[str, list[str]] = {}
+
+
+__all__ = ("BotBase",)
+
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 class BotBase:
@@ -60,7 +75,60 @@ class BotBase:
         await self.notification_webhook.send(content, **send_kwargs)
 
     @staticmethod
-    def add_codeblock_field(embed: discord.Embed, *, data: dict[str, Any], field_name: str = "Extra Data") -> discord.Embed:
+    def add_codeblock_field(
+        embed: discord.Embed,
+        *,
+        data: dict[str, Any],
+        field_name: str = "Extra Data",
+    ) -> discord.Embed:
         """Add data to an embed as nicely formatted field."""
         embed.add_field(name=field_name, value=fmt.pformat_dict(data), inline=False)
         return embed
+
+    def get_extensions(
+        self,
+        *,
+        is_subset_mode: bool,
+        folder: str,
+        disabled_extensions: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        """Get list of bot extensions to load.
+
+        Discord.py uses term 'extensions' so I will use it too, however keep in mind that some libraries
+        prefer other words, e.g. twitchIO calls it 'modules'.
+
+        I keep those extensions in `ext` folder.
+
+        Returns
+        -------
+        tuple[str, ...]
+            Tuple of extensions for the bot to load.
+            The extensions are given in a full dot form.
+            Example: `('ext.personal.alerts', 'ext.dev.control', 'ext.public.dota_rp_flow', )`
+        """
+        if is_subset_mode:
+            # We only need modules from SUBSET
+            # Also load `ext.beta`
+            return (
+                *tuple(
+                    f"ext.{category}.{extension}"
+                    for category, extensions in SUBSET.items()
+                    for extension in extensions
+                    if extensions
+                ),
+                "ext.beta",
+            )
+
+        # assume running full bot functionality (besides `DISABLED_MODULES`)
+        extensions: tuple[str, ...] = ()
+        ext_categories = [path for path in Path(folder).iterdir() if path.is_dir() and not path.name.startswith("_")]
+        for ext_category in ext_categories:
+            # Personal and Public modules
+            extensions += tuple(
+                extension.name
+                for extension in iter_modules([ext_category.absolute()], prefix=f"{__package__}.{ext_category.name}.")
+                if extension.name not in disabled_extensions
+            )
+
+        log.debug("The list of modules (%s total) to load: %s", len(extensions), extensions)
+        return extensions

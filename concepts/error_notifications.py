@@ -36,9 +36,9 @@ class ErrorNotificationManager:
     """Error Notification Manager.
 
     This sends all exceptions to a discord webhook with a role-ping so developers are notified as quickly as possible.
-    Also logs the exceptions to the console. For some reason, default implementation of discord.py and similar libraries is
-    to silently ignore the errors. This class in combination with error handlers (e.g. command error/event error/task error)
-    make sure everything is logged to the console and sent to the developers.
+    Also logs the exceptions to the console. For some reason, default implementation of discord.py and similar libraries
+    silently ignored the errors. This class in combination with error handlers (e.g. command error/event error/task error)
+    make sure everything is both logged to the console and sent to the developers.
 
     This class handles cooldowns with a simple lock, so we don't have to worry about rate limiting our webhook (as long as
     we don't use it elsewhere).
@@ -50,7 +50,7 @@ class ErrorNotificationManager:
     webhook_url
         The error webhook used to send errors.
         Webhook in hideout server to send errors/notifications to the developer(-s).
-    ping
+    ping_role_mention
         Discord mention of the role to ping the developers with.
     cooldown
         The cooldown between sending errors. This defaults to 5 seconds.
@@ -100,6 +100,8 @@ class ErrorNotificationManager:
             The error to register.
         embed
             Discord Embed to send together with the error's traceback.
+            This should showcase some information that can't be gotten from the error object directly, i.e.
+            discord author information, guild where the error happened, some snowflakes, etc.
         """
         log.error("⛔ Registering %s", error.__class__.__name__, exc_info=error)
 
@@ -143,7 +145,7 @@ class ErrorNotificationManager:
         traceback: :class:`str`
             The traceback of the error.
         embed
-            Discord Embed to send together with the traceback.
+            Discord Embed to send together with the traceback. This comes from registering the error.
         """
         code_chunks = list(self._yield_code_chunks(traceback))
 

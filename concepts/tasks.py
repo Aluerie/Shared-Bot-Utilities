@@ -62,8 +62,15 @@ class Loop(tasks.Loop[LF]):
 
     Warning
     -------
-    The task should be initiated in a class (e.g. Cog, Component) that has `.bot` of IreBot type..
+    The task should be initiated in a class (e.g. Cog, Component) that has `.bot` of XxxBot type.
+    Thankfully, there is no real need to use tasks outside of cogs.
 
+    Some notes to myself that I'm not sure where else to put
+    --------------------------------------------------------
+    * `before_loop`/`after_loop` only happens before/after the whole "loop" task is done,
+      it doesn't trigger before/after iteration. The name clearly indicates that but I got confused once.
+    * `cancel` - not graceful, `stop` - graceful. I have no idea how to remember that.
+    * `after_loop` will be triggered after both `stop`/`cancel`. The way to distinguish is `is_being_cancelled` property.
     """
 
     def __init__(
@@ -88,12 +95,29 @@ class Loop(tasks.Loop[LF]):
         self.clear_exception_types()
 
     async def _wait_for_ready(self, cog: CogWithTasksProtocol) -> None:
+        """Wait for ready.
+
+        if `wait_for_ready=True` was given to class constructor then it will be used as a `.before_loop` behavior.
+        It's somewhat convenience method. Otherwise, every task would have
+
+        .. code-block:: python
+
+            @my_task.before_loop
+            @other_task.before_loop
+            async def my_task_before(self):
+                await self.bot.wait_until_ready()
+
+        fragment of code. Can still be overwritten it for custom behavior.
+        """
         await cog.bot.wait_until_ready()
 
     @override
     async def _error(self, cog: CogWithTasksProtocol, exception: Exception) -> None:  # ty: ignore[invalid-method-override]
         """Register exceptions in tasks with our `error_notification_manager`."""
-        embed = discord.Embed(title=f"Task Error `{getattr(self.coro, '__qualname__', 'unknown coro')}`", colour=0x1A7A8A)
+        embed = discord.Embed(
+            colour=0x1A7A8A,
+            title=f"Task Error `{getattr(self.coro, '__qualname__', 'unknown coro')}`",
+        )
         if debug_data := getattr(exception, "debug_data", None):
             embed = cog.bot.add_codeblock_field(embed, data=debug_data)
         await cog.bot.error_notification_manager.register(exception, embed)
