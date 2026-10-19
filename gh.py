@@ -19,7 +19,7 @@ import aiofiles
 import pygit2
 from pygit2.enums import SortMode
 
-from shared.other import MISSING
+from .ut import MISSING
 
 __all__ = (
     "get_last_commit",

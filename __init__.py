@@ -16,5 +16,4 @@ from . import (
     fmt as fmt,
     fuzzy as fuzzy,
     globs as globs,
-    other as other,
 )
