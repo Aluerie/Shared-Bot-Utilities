@@ -11,9 +11,8 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import logging
-import platform
 import re
-import sys
+import sysconfig
 import traceback
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -45,8 +44,6 @@ class ErrorNotificationManager:
 
     Attributes
     ----------
-    bot_base
-        Bot base, it just has convenience method to create a discord webhook from url.
     webhook_url
         The error webhook used to send errors.
         Webhook in hideout server to send errors/notifications to the developer(-s).
@@ -64,6 +61,8 @@ class ErrorNotificationManager:
     __slots__: tuple[str, ...] = (
         "_lock",
         "_most_recent",
+        "_shorten_re",
+        "_shortenings",
         "cooldown",
         "error_webhook",
         "ping_role_mention",
@@ -76,6 +75,18 @@ class ErrorNotificationManager:
         *,
         cooldown: dt.timedelta = dt.timedelta(seconds=5),
     ) -> None:
+        """Init.
+
+        Parameters
+        ----------
+        bot_base
+            Bot base, it just has convenience method to create a discord webhook from url.
+        webhook_url
+            The error webhook used to send errors.
+            Webhook in hideout server to send errors/notifications to the developer(-s).
+        cooldown
+            The cooldown between sending errors. This defaults to 5 seconds.
+        """
         self.error_webhook: discord.Webhook = bot_base.webhook_from_url(webhook_url)
         self.ping_role_mention: str = bot_base.ping_role_mention
         self.cooldown: dt.timedelta = cooldown
@@ -83,13 +94,19 @@ class ErrorNotificationManager:
         self._lock: asyncio.Lock = asyncio.Lock()
         self._most_recent: dt.datetime | None = None
 
-    @staticmethod
-    def _yield_code_chunks(iterable: str, *, chunks_size: int = 2000) -> Generator[str]:
-        codeblocks: str = "```py\n{}```"
-        max_chars_in_code: int = chunks_size - (len(codeblocks) - 2)  # chunks_size minus code blocker size
+        self._shortenings = {
+            sysconfig.get_paths()["purelib"]: "<venv>",
+            str(Path.cwd() / "src"): "<src>",
+        }
+        self._shorten_re = re.compile("|".join(map(re.escape, self._shortenings)))
 
-        for i in range(0, len(iterable), max_chars_in_code):
-            yield codeblocks.format(iterable[i : i + max_chars_in_code])
+    @staticmethod
+    def _yield_code_chunks(text: str, *, chunks_size: int = 2000) -> Generator[str]:
+        prefix, suffix = "```py\n", "```"
+        max_chars = chunks_size - len(prefix) - len(suffix)
+
+        for i in range(0, len(text), max_chars):
+            yield f"{prefix}{text[i : i + max_chars]}{suffix}"
 
     async def register(self, error: BaseException, embed: discord.Embed) -> None:
         """Register, analyse error and put it into queue to send to developers.
@@ -105,36 +122,27 @@ class ErrorNotificationManager:
         """
         log.error("⛔ Registering %s", error.__class__.__name__, exc_info=error)
 
-        if platform.system() == "Linux":
-            py_version = sys.version_info
-            venv_path = f"{Path.cwd()}/.venv/lib/python{py_version.major}.{py_version.minor}/site-packages"
-            src_path = f"{Path.cwd()}/src"
-        else:
-            # Windows (fok MacOS)
-            venv_path = f"{Path.cwd()}\\.venv\\Lib\\site-packages"
-            src_path = f"{Path.cwd()}\\src"
-
-        shortenings = {venv_path: "<venv>", src_path: "<src>"}
-        regex_pattern = re.compile("|".join(map(re.escape, shortenings.keys())))
-        traceback_string = regex_pattern.sub(
-            repl=lambda mo: shortenings[mo.group()],
+        traceback_string = self._shorten_re.sub(
+            repl=lambda mo: self._shortenings[mo.group()],
             string="".join(traceback.format_exception(error)),
         )
 
         async with self._lock:
-            if self._most_recent and (delta := clock.utcnow() - self._most_recent) < self.cooldown:
-                # We have to wait
-                total_seconds = delta.total_seconds()
-                log.debug("Waiting %s seconds to send the error.", total_seconds)
-                await asyncio.sleep(total_seconds)
+            if self._most_recent and (elapsed := clock.utcnow() - self._most_recent) < self.cooldown:
+                remaining = (self.cooldown - elapsed).total_seconds()
+                log.debug("Waiting %.2f seconds to send the error.", remaining)
+                await asyncio.sleep(remaining)
 
             self._most_recent = clock.utcnow()
-            await self._send_notification(traceback_string, embed)
+            try:
+                await self._send_notification(traceback_string, embed)
+            except Exception:
+                log.exception("Failed to send error notification")
 
-    async def _send_notification(self, traceback: str, embed: discord.Embed) -> None:
+    async def _send_notification(self, traceback_string: str, embed: discord.Embed) -> None:
         """Send an error notification to the webhook.
 
-        This pings the developers with `self.ping` mention.
+        This pings the developers with `self.ping_role_mention` mention.
 
         .. caution::
 
@@ -142,12 +150,12 @@ class ErrorNotificationManager:
 
         Parameters
         ----------
-        traceback: :class:`str`
+        traceback_string
             The traceback of the error.
         embed
             Discord Embed to send together with the traceback. This comes from registering the error.
         """
-        code_chunks = list(self._yield_code_chunks(traceback))
+        code_chunks = list(self._yield_code_chunks(traceback_string))
 
         await self.error_webhook.send(self.ping_role_mention)
         for chunk in code_chunks:
