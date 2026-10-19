@@ -89,7 +89,7 @@ class BotBase:
         self,
         *,
         is_subset_mode: bool,
-        folder: str,
+        package: str,
         disabled_extensions: tuple[str, ...],
     ) -> tuple[str, ...]:
         """Get list of bot extensions to load.
@@ -120,13 +120,14 @@ class BotBase:
             )
 
         # assume running full bot functionality (besides `DISABLED_MODULES`)
+        current_folder = f"src/{package}"
         extensions: tuple[str, ...] = ()
-        ext_categories = [path for path in Path(folder).iterdir() if path.is_dir() and not path.name.startswith("_")]
+        ext_categories = [path for path in Path(current_folder).iterdir() if path.is_dir() and not path.name.startswith("_")]
         for ext_category in ext_categories:
             # Personal and Public modules
             extensions += tuple(
                 extension.name
-                for extension in iter_modules([ext_category.absolute()], prefix=f"{__package__}.{ext_category.name}.")
+                for extension in iter_modules([ext_category.absolute()], prefix=f"{package}.{ext_category.name}.")
                 if extension.name not in disabled_extensions
             )
 
