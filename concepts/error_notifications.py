@@ -96,6 +96,7 @@ class ErrorNotificationManager:
 
         self._shortenings = {
             sysconfig.get_paths()["purelib"]: "<venv>",
+            sysconfig.get_paths()["stdlib"]: "<stdlib>",
             str(Path.cwd() / "src"): "<src>",
         }
         self._shorten_re = re.compile("|".join(map(re.escape, self._shortenings)))
