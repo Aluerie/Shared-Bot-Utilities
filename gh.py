@@ -179,13 +179,13 @@ def get_last_commit() -> CommitInfo:
 @dataclass
 class CodeCounter:
     path: str
-    filetype: str
+    filetypes: str | tuple[str, ...]
 
     async def count(self, path: str = MISSING) -> int:
         lines = 0
         for i in os.scandir(path or self.path):
             if i.is_file():
-                if i.path.endswith(self.filetype):
+                if i.path.endswith(self.filetypes):
                     if re.search(r"(\\|/)?.?venv(\\|/)", i.path):
                         # Skip venv
                         continue
@@ -215,4 +215,5 @@ class ContainsCounter(CodeCounter):
 
     @override
     async def add_lines(self, lines_list: list[str]) -> int:
+        # TODO: either regex it or ast
         return len([line for line in lines_list if self.file_contains in line])

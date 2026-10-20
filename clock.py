@@ -10,6 +10,7 @@ import datetime as dt
 from typing import Literal, NamedTuple, assert_never, get_args, overload
 
 from dateutil.relativedelta import relativedelta
+from discord.utils import TimestampStyle, copy_doc, format_dt
 
 from .fmt import plural
 
@@ -306,3 +307,9 @@ def human_timedelta(
 
     amounts: dict[TimeUnitLiteral, int] = {"days": days_, "hours": hrs, "minutes": mins, "seconds": secs}
     return _select_parts(amounts, mode, max_units)
+
+
+@copy_doc(format_dt)
+def discord(when: dt.datetime, /, style: TimestampStyle | None = None) -> str:
+    """Alias for `discord.utils.format_dt`."""
+    return format_dt(when, style)
