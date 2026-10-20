@@ -230,10 +230,10 @@ def human_timedelta(
 @overload
 def human_timedelta(
     *,
-    days: int | None = None,
-    hours: int | None = None,
-    minutes: int | None = None,
-    seconds: int | None = None,
+    days: float | None = None,
+    hours: float | None = None,
+    minutes: float | None = None,
+    seconds: float | None = None,
     max_units: int | None = 3,
     mode: HumanTimedeltaMode = "full",
 ) -> str: ...
@@ -242,10 +242,10 @@ def human_timedelta(
 def human_timedelta(
     td: dt.timedelta | None = None,
     *,
-    days: int | None = None,
-    hours: int | None = None,
-    minutes: int | None = None,
-    seconds: int | None = None,
+    days: float | None = None,
+    hours: float | None = None,
+    minutes: float | None = None,
+    seconds: float | None = None,
     max_units: int | None = 2,
     mode: HumanTimedeltaMode = "full",
 ) -> str:

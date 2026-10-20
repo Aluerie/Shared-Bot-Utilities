@@ -82,7 +82,7 @@ class BotBase:
         field_name: str = "Extra Data",
     ) -> discord.Embed:
         """Add data to an embed as nicely formatted field."""
-        embed.add_field(name=field_name, value=fmt.pformat_dict(data), inline=False)
+        embed.add_field(name=field_name, value=fmt.pformat_kwargs(*data), inline=False)
         return embed
 
     def get_extensions(
@@ -131,5 +131,5 @@ class BotBase:
                 if extension.name not in disabled_extensions
             )
 
-        log.debug("The list of modules (%s total) to load: %s", len(extensions), extensions)
+        log.info("The list of modules (%s total) to load: %s", len(extensions), extensions)
         return extensions

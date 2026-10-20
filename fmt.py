@@ -50,24 +50,28 @@ CODE_LANGUAGES = [
 
 
 def codeblock(text: str, language: str = "py") -> str:
-    """Wrap text into a triple "`" discord codeblock.
+    """Wrap text into a triple backtick Discord codeblock.
 
-    For no code version we can just use `language=""`.
+    Use `language=""` for a plain (no highlighting) block. Any triple backticks
+    inside `text` are neutralized so they can't close the block early.
 
-    You can check which languages are supported in Discord by looking at the `fmt.CODE_LANGUAGES` constant.
+    See `fmt.CODE_LANGUAGES` for the code languages Discord supports.
     """
-    return f"```{language}\n{text}```"
+    safe_text = text.replace("```", "``\u200b`")
+    return f"```{language}\n{safe_text}\n```"
 
 
-def pformat_dict(data: dict[str, Any]) -> str:
-    """Pformat Kwarg or dictionaries (mainly for the discord messages)."""
+def pformat_args(*args: Any) -> str:
+    """Pretty-format args into a Discord codeblock."""
+    return pformat_kwargs(**{f"arg_{i}": arg for (i, arg) in enumerate(args)})
+
+
+def pformat_kwargs(**kwargs: Any) -> str:
+    """Pretty-format kwargs into a Discord codeblock."""
     return codeblock(
-        text=(
-            "\n".join(f"{name}={pprint.pformat(repr(value), indent=4)}" for name, value in data.items())
-            if data
-            else "No arguments"
-        ),
-        language="toml",
+        "\n".join(f"{name}={pprint.pformat(value, indent=4)}" for name, value in kwargs.items())
+        if kwargs
+        else "No arguments"
     )
 
 
