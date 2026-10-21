@@ -52,7 +52,7 @@ class StratzClient:
                 return graphql_json["data"]
             except KeyError:
                 msg = "Stratz GraphQL API Error:"
-                raise errors.ApiError(msg, graphql_json) from None
+                raise errors.SomethingWentWrongError(msg, data={"graphql_json": graphql_json}) from None
 
     async def get_items(self) -> list[schemas.Item]:
         """Get Constants for Dota 2 Items."""

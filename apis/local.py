@@ -40,7 +40,7 @@ class MatchState(IntEnum):
     Live = 2
     Pending = 3
     Completed = 4
-    ApiError = 91
+    GaveUp = 91
 
 
 class Category(Enum):

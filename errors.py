@@ -164,23 +164,6 @@ class BadUserInputError(BotError):
 # ########################################
 
 
-class ApiError(CustomError):
-    """Api Error.
-
-    This error is raised when there is a problem with a 3rd party API.
-
-    Attributes
-    ----------
-    data: Any | None
-        Data that API attached to the response, if any.
-
-    """
-
-    def __init__(self, message: str, data: Any | None = None) -> None:
-        self.data: Any | None = data
-        super().__init__(message)
-
-
 # class UnsatisfyingResultError(CustomError):
 #     """Error indicating that the result of operation was unsatisfying.
 

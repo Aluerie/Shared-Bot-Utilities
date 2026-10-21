@@ -99,7 +99,7 @@ class SteamWebAPIClient:
                 await asyncio.sleep(0.49 * 1.7**attempt)
                 continue
         msg = "Steam Web API Error."
-        raise errors.ApiError(msg)
+        raise errors.SomethingWentWrongError(msg)
 
     async def get_real_time_stats(self, server_steam_id: int) -> RealTimeStats:
         """Get Real Time Stats from Steam Web API.
