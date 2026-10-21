@@ -22,7 +22,7 @@ from shared import errors
 if TYPE_CHECKING:
     from aiohttp import ClientSession
 
-    from shared.types_ import steam_web_api as schemas
+    from shared.types_ import steam_web as schemas
 
 
 __all__ = ("SteamWebAPIClient",)

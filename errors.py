@@ -14,79 +14,72 @@ Notices
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from dataclasses import dataclass
+from typing import Any, ClassVar
+
+
+@dataclass(frozen=True, slots=True)
+class Behavior:
+    """Class defining behavior for error handlers.
+
+    Attributes
+    ----------
+    respond
+        Whether the bot should respond to end-user.
+    notify
+        Whether the bot should notify its developers about the raised exception.
+    """
+
+    respond: bool
+    notify: bool
+
+
+SILENT = Behavior(respond=False, notify=False)
+RESPOND = Behavior(respond=True, notify=False)
+RESPOND_NOTIFY = Behavior(respond=True, notify=True)
 
 
 class CustomError(Exception):
     """The base exception for my (@Aluerie) projects. All other exceptions should inherit from this."""
 
 
-ErrorHandlerBehavior = Literal[
-    "silent",
-    "respond",
-    "respond+notify",
-    "sww+notify",
-]
-"""
-`BotError` have .behavior attribute which defines how error handlers are supposed to process those errors.
-I consider 5 distinguish cases
-|                              | User notified?                       | Devs notified? |
-| ---------------------------- | ------------------------------------ | -------------- |
-| silent                       | No                                   | No             |
-| respond                      | Yes                                  | No             |
-| respond+notify               | Yes                                  | Yes            |
-| sww+notify                   | Yes, but with 'Something Went Wrong' | Yes            |
-| Non-BotError exception types | Depends - look into Error Handlers   | Depends        |
-"""
-
-
 class BotError(CustomError):
     """The base exception for my (@Aluerie) Bot projects. All other exceptions should inherit from this.
 
-    Due to the bots' nature of interacting with - it needs to interact with its users.
-    Exactly for this purpose, this class has various attributes that control how error handlers are supposed
-    to handle such exceptions.
+    This class introduces various attributes to control whether error handlers should respond to the end-user or/and send
+    a notification message to the bot's developers.
 
     Attributes
     ----------
-    msg: str
-        Message to initiate the exception with.
-    respond: bool = True
-        Whether the bot should respond in twitch chat.
-    something_went_wrong: bool = False
-        Whether to use `msg` as a response or prepared "Oups, something went wrong" message.
-        Useful for when we want to hide the error from the user.
-    silent: bool = False
-        Whether the bot's error handlers should silently ignore this error.
-        If this flag is True then the bot won't care about any other attributes - just silence.
-    register: bool = False
-        Whether a notification with a full report for the developers about the error should be registered.
-        These reports are sent in my private discord so I can look at them in a great detail.
-    **debug_data_kwargs: Any
-        If any are provided - the bot will attach this data to the mentioned above message for the developers.
+    behavior
+        Error handler's desired behavior when this error is raised.
+    response_msg
+        Response message to the end-user. This defaults to the exception message (``str(exc)``).
+        Use this attribute to set a different message.
+    data
+        Extra debug data the error handler attaches to the developer notification.
+        This data is only used when `behavior.notify` is true.
     """
+
+    default_behavior: ClassVar[Behavior] = RESPOND
 
     def __init__(
         self,
         msg: str,
         *,
-        behavior: ErrorHandlerBehavior = "respond",
-        response_message: str | None = None,
-        **debug_data_kwargs: Any,
+        behavior: Behavior | None = None,
+        response_msg: str | None = None,
+        data: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(msg)
-        self.msg: str = msg
-        self.behavior: ErrorHandlerBehavior = behavior
-        self.response_message: str = response_message or msg
-        self.debug_data: dict[str, Any] = debug_data_kwargs
+        self.behavior: Behavior = behavior if behavior is not None else self.default_behavior
+        self.response_msg: str = response_msg or msg
+        self.data: dict[str, Any] = data or {}
 
 
-class NotAllowedError(BotError):
-    """Raised when a user is not allowed to use the requested functionality."""
-
-
-class BadUserInputError(BotError):
-    """Error indicating there was a problem with the user input."""
+#############################################################################################################################
+# GENERAL ERRORS
+#############################################################################################################################
 
 
 class RespondWithError(BotError):
@@ -98,13 +91,32 @@ class RespondWithError(BotError):
 
 
 class SomethingWentWrongError(BotError):
-    """Placeholder Error for "Something went wrong" moments.
+    """Placeholder Error for "Something went wrong" situations.
 
-    An error type I mostly use for the debugging purposes in places I'm not sure what to do about.
+    Error I mostly use for the debugging purposes in places I'm not sure what to do about.
     """
 
-    def __init__(self, msg: str, **debug_data_kwargs: Any) -> None:
-        super().__init__(msg, behavior="sww+notify", **debug_data_kwargs)
+    default_behavior = RESPOND_NOTIFY
+
+    def __init__(self, msg: str, *, data: dict[str, Any] | None = None) -> None:
+        super().__init__(
+            msg,
+            response_msg="Something went wrong; Irene has been notified about this",
+            data=data,
+        )
+
+
+#############################################################################################################################
+# MORE SPECIFIC ERRORS
+#############################################################################################################################
+
+
+class NotAllowedError(BotError):
+    """Raised when a user is not allowed to use the requested functionality."""
+
+
+class BadUserInputError(BotError):
+    """Error indicating there was a problem with the user input."""
 
 
 ########################################
