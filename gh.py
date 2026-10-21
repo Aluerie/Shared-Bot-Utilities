@@ -178,17 +178,10 @@ def get_last_commit() -> CommitInfo:
     return next(iter(get_latest_commits(1)))
 
 
-EXCLUDED_DIRS = frozenset({
-    ".git",
-    ".venv",
-    "venv",
-    "env",
-    "__pycache__",
-    ".pytest_cache",
-})
+EXCLUDED_DIRS = frozenset({".git", ".venv", "venv", "env", "__pycache__", ".pytest_cache", ".ruff_cache"})
 
 
-def count_lines(root: str = ".") -> int:
+def count_lines(root: str | Path = ".") -> int:
     """Count all lines in .py files under `root`."""
     total = 0
     for dirpath, dirnames, filenames in Path(root).walk():
