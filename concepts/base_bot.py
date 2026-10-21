@@ -82,7 +82,7 @@ class BotBase:
         field_name: str = "Extra Data",
     ) -> discord.Embed:
         """Add data to an embed as nicely formatted field."""
-        embed.add_field(name=field_name, value=fmt.pformat_kwargs(*data), inline=False)
+        embed.add_field(name=field_name, value=fmt.pformat_kwargs(**data), inline=False)
         return embed
 
     def get_extensions(
