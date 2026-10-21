@@ -68,11 +68,9 @@ def pformat_args(*args: Any) -> str:
 
 def pformat_kwargs(**kwargs: Any) -> str:
     """Pretty-format kwargs into a Discord codeblock."""
-    return codeblock(
-        "\n".join(f"{name}={pprint.pformat(value, indent=4)}" for name, value in kwargs.items())
-        if kwargs
-        else "No arguments"
-    )
+    if not kwargs:
+        return codeblock("No arguments")
+    return codeblock("\n".join(f"{name}={pprint.pformat(value, indent=4)}" for name, value in kwargs.items()))
 
 
 def ordinal(n: int | str) -> str:

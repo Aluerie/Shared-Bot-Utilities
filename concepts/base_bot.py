@@ -15,8 +15,6 @@ from typing import TYPE_CHECKING, Any
 
 import discord
 
-from shared import fmt
-
 from .error_notifications import ErrorNotificationManager
 
 if TYPE_CHECKING:
@@ -73,17 +71,6 @@ class BotBase:
         """
         content = f"{self.ping_role_mention}\n{content}"
         await self.notification_webhook.send(content, **send_kwargs)
-
-    @staticmethod
-    def add_codeblock_field(
-        embed: discord.Embed,
-        *,
-        data: dict[str, Any],
-        field_name: str = "Extra Data",
-    ) -> discord.Embed:
-        """Add data to an embed as nicely formatted field."""
-        embed.add_field(name=field_name, value=fmt.pformat_kwargs(**data), inline=False)
-        return embed
 
     def get_extensions(
         self,
