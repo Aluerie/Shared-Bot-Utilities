@@ -6,6 +6,8 @@ Notices
 * Copyright (C) 2020-present @Aluerie.
 """
 
+from __future__ import annotations
+
 import datetime as dt
 from typing import Literal, NamedTuple, assert_never, get_args, overload
 

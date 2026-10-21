@@ -10,6 +10,8 @@ Notices
 * Copyright (C) 2020-present @Aluerie.
 """
 
+from __future__ import annotations
+
 from enum import StrEnum
 
 __all__ = (

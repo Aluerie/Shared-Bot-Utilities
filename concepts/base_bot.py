@@ -6,6 +6,8 @@ Notices
 * Copyright (C) 2020-present @Aluerie.
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from pkgutil import iter_modules
