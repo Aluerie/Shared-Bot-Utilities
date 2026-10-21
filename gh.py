@@ -8,23 +8,33 @@ Notices
 
 from __future__ import annotations
 
+import abc
+import asyncio
 import datetime as dt
 import itertools
-import os
+import logging
 import re
-from dataclasses import dataclass
-from typing import override
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING, override
 
-import aiofiles
 import pygit2
 from pygit2.enums import SortMode
 
-from .ut import MISSING
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 
 __all__ = (
+    "LinesCounter",
+    "MatchingLinesCounter",
     "get_last_commit",
     "get_latest_commits",
 )
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 GITMOJI_MAPPING = {
     # I freaking love https://gitmoji.dev/specification commit format
@@ -176,44 +186,68 @@ def get_last_commit() -> CommitInfo:
     return next(iter(get_latest_commits(1)))
 
 
-@dataclass
-class CodeCounter:
-    path: str
+IGNORED_DIRS = frozenset({".git", ".venv", "venv", "env", "__pycache__"})
+
+
+@dataclass(kw_only=True)
+class CodeCounter(abc.ABC):
+    folder: str
     filetypes: str | tuple[str, ...]
+    ignored_dirs: frozenset[str] = IGNORED_DIRS
+    concurrency: int = 32
 
-    async def count(self, path: str = MISSING) -> int:
-        lines = 0
-        for i in os.scandir(path or self.path):
-            if i.is_file():
-                if i.path.endswith(self.filetypes):
-                    if re.search(r"(\\|/)?.?venv(\\|/)", i.path):
-                        # Skip venv
-                        continue
-                    lines_list = await self.lines_list(i.path)
-                    lines += await self.add_lines(lines_list)
-            elif i.is_dir():
-                lines += await self.count(i.path)
-        return lines
+    _path: Path = field(init=False, repr=False)
 
-    async def lines_list(self, path: str) -> list[str]:
-        return (await (await aiofiles.open(path, encoding="utf8")).read()).split("\n")
+    def __post_init__(self) -> None:
+        self._path = Path(self.folder)
 
-    async def add_lines(self, lines_list: list[str]) -> int:
-        raise NotImplementedError
+    def _iter_files(self) -> Iterator[Path]:
+        for dirpath, dirnames, filenames in self._path.walk():
+            dirnames[:] = [d for d in dirnames if d not in self.ignored_dirs]
+            for name in filenames:
+                if name.endswith(self.filetypes):
+                    yield dirpath / name
+
+    def _count_file(self, path: Path) -> int:
+        try:
+            with path.open(encoding="utf8") as f:
+                return sum(1 for line in f if self.matches(line))
+        except OSError, ValueError:
+            log.warning("could not read %s", path, exc_info=True)
+            return 0
+
+    def _count_sync(self) -> int:
+        with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
+            return sum(pool.map(self._count_file, self._iter_files()))
+
+    async def count(self) -> int:
+        return await asyncio.to_thread(self._count_sync)
+
+    @abc.abstractmethod
+    def matches(self, line: str) -> bool: ...
 
 
-@dataclass
+@dataclass(kw_only=True)
 class LinesCounter(CodeCounter):
-    @override
-    async def add_lines(self, lines_list: list[str]) -> int:
-        return len(lines_list)
-
-
-@dataclass
-class ContainsCounter(CodeCounter):
-    file_contains: str
+    """Lines Counter."""
 
     @override
-    async def add_lines(self, lines_list: list[str]) -> int:
-        # TODO: either regex it or ast
-        return len([line for line in lines_list if self.file_contains in line])
+    def matches(self, line: str) -> bool:
+        return True
+
+
+@dataclass(kw_only=True)
+class MatchingLinesCounter(CodeCounter):
+    """Matching Lines Counter."""
+
+    substring: str
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if not self.substring:
+            msg = "substring must be non-empty"
+            raise ValueError(msg)
+
+    @override
+    def matches(self, line: str) -> bool:
+        return self.substring in line
