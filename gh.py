@@ -19,8 +19,7 @@ import pygit2
 from pygit2.enums import SortMode
 
 __all__ = (
-    "LinesCounter",
-    "MatchingLinesCounter",
+    "count_lines",
     "get_last_commit",
     "get_latest_commits",
 )

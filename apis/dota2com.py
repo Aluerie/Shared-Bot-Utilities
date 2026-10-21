@@ -24,8 +24,10 @@ from typing import TYPE_CHECKING, Any
 import orjson
 from steam.ext.dota2 import GameMode, Hero, LobbyType
 
+from shared import errors
+
 if TYPE_CHECKING:
-    import aiohttp
+    from aiohttp import ClientSession
 
     from shared.types_ import dota2com as schemas
 
@@ -75,8 +77,8 @@ class RealTimeStatsPlayer:
 class Dota2comClient:
     """A class for interacting with Dota 2 Datafeed API."""
 
-    def __init__(self, *, session: aiohttp.ClientSession) -> None:
-        self.session = session
+    def __init__(self, *, session: ClientSession) -> None:
+        self.session: ClientSession = session
 
     async def _invoke(self, endpoint: str, **query_kwargs: Any) -> Any:
         """Invoke a request to OpenDota API."""
@@ -97,16 +99,24 @@ class Dota2comClient:
         data: list[schemas.HeroListHero] = await self._invoke("datafeed/herolist", language=language)
         return [HeroListHero(d) for d in data]
 
-    async def real_time_stats(self, server_steam_id: int) -> RealTimeStats:
+    async def real_time_stats(self, server_steam_id: int | None) -> RealTimeStats:
         """Get real time stats.
 
         References
         ----------
         * https://dota2.com/webapi/IDOTA2MatchStats/GetRealtimeStats/v001?server_steam_id=90295464167395331
         """
+        if server_steam_id is None:
+            msg = "This match does not support real time stats"
+            raise errors.RespondWithError(msg)
+
         data: schemas.RealTimeStats | None = await self._invoke(
-            "webapi/IDOTA2MatchStats/GetRealtimeStats/v001", server_steam_id=server_steam_id
+            endpoint="webapi/IDOTA2MatchStats/GetRealtimeStats/v001",
+            server_steam_id=server_steam_id,
         )
+        if not data:
+            msg = "It seems this match is not live, no stats were received"
+            raise errors.RespondWithError(msg)
         return RealTimeStats(data)
 
     # Other links that can be interesting (maybe implement in future):

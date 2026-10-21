@@ -3,6 +3,16 @@
 Some helper methods and classes wrapping:
 * GraphQL 7TV API
 
+
+Just in case, here are some Seven TV Ids so it's less painful to test GraphQL queries:
+{
+    "emoteSetId": "01FAQVCS500002EV4FV330P46A", # IRENE_EMOTE_SET (BOT_EMOTE_SET too)
+    "emoteId": "01GA4TYKW0000EN50T4AGZ0CK8", # 'lebronJAM', not in the set
+    "emoteId": "01G5CH6XX80000X2D18ZB9HGA2", # 'yo' emote, in the set
+    "userId": "01FAQVCS500002EV4FV330P46A" # IRENE
+    "botId": "01KFF67D46PJPD1S6DPFFT06E3" # BOT
+}
+
 Notices
 -------
 * MPL-2.0 License, see LICENSE file for more details.
@@ -60,8 +70,6 @@ __all__ = (
     "PartialEmoteSet",
     "PartialUser",
     "ServiceError",
-    "SevenTVError",
-    "SomethingWentWrongError",
     "StvGraphQLClient",
     "UnauthorizedError",
     "UnsatisfyingResultError",
@@ -86,37 +94,42 @@ EMOTE_SET_EMOTES_CAPACITY_LIMIT = 1000
 #############################################################################################################################
 
 
-class SevenTVError(errors.CustomError):
-    """Error Class for Seven TV Errors.
+class SevenTVErrorMixin:
+    """Marker mixin for errors related to the 7TV integration.
 
-    I mean this class to be used for those errors that comes from 7TV API directly, i.e. in `message` field.
+    This class is to be used for those errors that comes from 7TV API directly, i.e. in `message` field.
     """
 
 
-class UnauthorizedError(SevenTVError):
+class UnauthorizedError(SevenTVErrorMixin, errors.RespondAndNotifyError):
     """Unauthorized."""
 
-    def __init__(
-        self,
-        message: str,
-        **debug_data_kwargs: Any,
-    ) -> None:
-        super().__init__(message)
-        self.message: str = message
-        self.debug_data: dict[str, Any] = debug_data_kwargs
+    def __init__(self, data: dict[str, Any]) -> None:
+        super().__init__(
+            msg=(
+                "It seems bot's 7TV Bearer Token is expired. Irene, please, grab a new one via dev tools or "
+                "figure out how to make the bot automatically refresh it."
+            ),
+            response_msg="Ooups, 7TV logged me out; Irene needs to fix it (surely permanently this time)",
+            data=data,
+        )
 
 
-class InvokeQueryError(SevenTVError):
-    """TransportQueryError."""
+class InvokeQueryError(SevenTVErrorMixin, errors.RespondAndNotifyError):
+    """InvokeQueryError."""
 
     def __init__(self, status: Any, message: Any, code: Any) -> None:
+        super().__init__(
+            msg=f"{status} {message}",
+            data={"status": status, "message": message, "code": code},
+            response_msg=errors.SOMETHING_WENT_WRONG_MESSAGE,
+        )
         self.status = status
         self.message = message
         self.code = code
-        super().__init__(f"{status} {message}")
 
 
-class UnsatisfyingResultError(SevenTVError):
+class UnsatisfyingResultError(SevenTVErrorMixin, errors.RespondWithError):
     """UnsatisfyingResultError."""
 
 
@@ -138,19 +151,6 @@ class LackingPrivilegesError(UnsatisfyingResultError):
 
 class InvalidEmoteAliasError(UnsatisfyingResultError):
     """Invalid Emote Alias Error."""
-
-
-class SomethingWentWrongError(SevenTVError):
-    """SomethingWentWrongError."""
-
-    def __init__(
-        self,
-        message: str,
-        **debug_data_kwargs: Any,
-    ) -> None:
-        super().__init__(message)
-        self.message: str = message
-        self.debug_data: dict[str, Any] = debug_data_kwargs
 
 
 #############################################################################################################################
@@ -308,6 +308,7 @@ query EmotesInSet($id: Id!, $query: String, $page: Int!, $perPage: Int!) {
         -------
         str
             Emote's `alias` in the mentioned emote set. If alias wasn't set, it still returns `defaultName` for the emote.
+
         """
         res = await self._client.invoke(
             query="""
@@ -326,7 +327,7 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
             variables={"emoteSetId": self.id, "emoteId": emote_id},
         )
 
-        emote = res["emotes"]["emote"]["inEmoteSets"][0]["emote"]
+        emote: Any | None = res["emotes"]["emote"]["inEmoteSets"][0]["emote"]
         if emote is None:
             msg = f"Could not find {emote_id} in emote set {self.id}"
             raise EmoteNotFoundError(msg)
@@ -737,10 +738,8 @@ class StvGraphQLClient:
     * https://github.com/SevenTV/SevenTV/issues/216
         Remember to search in their issues for some examples of GraphQL requests/responses.
 
-    Parameters
+    Attributes
     ----------
-    token: str
-        Bearer Token for Seven TV API usage.
     session: ClientSession | None = None
         If provided, then the wrapper will use it as its session calls.
         Otherwise, it will create a new `ClientSession` on every API call.
@@ -816,14 +815,10 @@ class StvGraphQLClient:
             case {"status": status} if status == "Unauthorized":
                 # If bearer token expired -
                 # 7TV sends {'status': 'Unauthorized', 'error_code': 1000, 'error': 'invalid session'}
-                msg = (
-                    "It seems The bot's 7TV Bearer Token is expired. Irene, please, grab a new one via dev tools or "
-                    "figure out how to make the bot automatically refresh it."
-                )
-                raise UnauthorizedError(msg, gql_json=gql_json)
+                raise UnauthorizedError(data={"gql_json": gql_json})
             case _:
                 msg = "Something went wrong"
-                raise SomethingWentWrongError(msg, gql_json=gql_json)
+                raise errors.SomethingWentWrongError(msg, data={"gql_json": gql_json})
 
     def create_partial_emote(self, emote_id: str) -> PartialEmote:
         """Create partial emote."""

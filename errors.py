@@ -15,12 +15,14 @@ Notices
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Final
+
+SOMETHING_WENT_WRONG_MESSAGE: Final = "Something went wrong; Irene has been notified about this"
 
 
 @dataclass(frozen=True, slots=True)
-class Behavior:
-    """Class defining behavior for error handlers.
+class Policy:
+    """Class defining behavior policy for error handlers.
 
     Attributes
     ----------
@@ -34,9 +36,9 @@ class Behavior:
     notify: bool
 
 
-SILENT = Behavior(respond=False, notify=False)
-RESPOND = Behavior(respond=True, notify=False)
-RESPOND_NOTIFY = Behavior(respond=True, notify=True)
+SILENT = Policy(respond=False, notify=False)
+RESPOND = Policy(respond=True, notify=False)
+RESPOND_NOTIFY = Policy(respond=True, notify=True)
 
 
 class CustomError(Exception):
@@ -51,28 +53,28 @@ class BotError(CustomError):
 
     Attributes
     ----------
-    behavior
-        Error handler's desired behavior when this error is raised.
+    policy
+        Error handler's desired behavior policy when this error is raised.
     response_msg
         Response message to the end-user. This defaults to the exception message (``str(exc)``).
         Use this attribute to set a different message.
     data
         Extra debug data the error handler attaches to the developer notification.
-        This data is only used when `behavior.notify` is true.
+        This data is only used when `policy.notify` is true.
     """
 
-    default_behavior: ClassVar[Behavior] = RESPOND
+    default_policy: ClassVar[Policy] = RESPOND
 
     def __init__(
         self,
         msg: str,
         *,
-        behavior: Behavior | None = None,
+        policy: Policy | None = None,
         response_msg: str | None = None,
         data: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(msg)
-        self.behavior: Behavior = behavior if behavior is not None else self.default_behavior
+        self.policy: Policy = policy if policy is not None else self.default_policy
         self.response_msg: str = response_msg or msg
         self.data: dict[str, Any] = data or {}
 
@@ -90,20 +92,20 @@ class RespondWithError(BotError):
     """
 
 
-class SomethingWentWrongError(BotError):
+class RespondAndNotifyError(BotError):
+    """Error whose message is shown to the user, and which also notifies developers."""
+
+    default_policy = RESPOND_NOTIFY
+
+
+class SomethingWentWrongError(RespondAndNotifyError):
     """Placeholder Error for "Something went wrong" situations.
 
     Error I mostly use for the debugging purposes in places I'm not sure what to do about.
     """
 
-    default_behavior = RESPOND_NOTIFY
-
     def __init__(self, msg: str, *, data: dict[str, Any] | None = None) -> None:
-        super().__init__(
-            msg,
-            response_msg="Something went wrong; Irene has been notified about this",
-            data=data,
-        )
+        super().__init__(msg, response_msg=SOMETHING_WENT_WRONG_MESSAGE, data=data)
 
 
 #############################################################################################################################
