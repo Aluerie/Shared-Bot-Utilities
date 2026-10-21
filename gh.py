@@ -8,23 +8,15 @@ Notices
 
 from __future__ import annotations
 
-import abc
-import asyncio
 import datetime as dt
 import itertools
 import logging
 import re
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, override
 
 import pygit2
 from pygit2.enums import SortMode
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
 
 __all__ = (
     "LinesCounter",
@@ -186,68 +178,26 @@ def get_last_commit() -> CommitInfo:
     return next(iter(get_latest_commits(1)))
 
 
-IGNORED_DIRS = frozenset({".git", ".venv", "venv", "env", "__pycache__"})
+EXCLUDED_DIRS = frozenset({
+    ".git",
+    ".venv",
+    "venv",
+    "env",
+    "__pycache__",
+    ".pytest_cache",
+})
 
 
-@dataclass(kw_only=True)
-class CodeCounter(abc.ABC):
-    folder: str
-    filetypes: str | tuple[str, ...]
-    ignored_dirs: frozenset[str] = IGNORED_DIRS
-    concurrency: int = 32
-
-    _path: Path = field(init=False, repr=False)
-
-    def __post_init__(self) -> None:
-        self._path = Path(self.folder)
-
-    def _iter_files(self) -> Iterator[Path]:
-        for dirpath, dirnames, filenames in self._path.walk():
-            dirnames[:] = [d for d in dirnames if d not in self.ignored_dirs]
-            for name in filenames:
-                if name.endswith(self.filetypes):
-                    yield dirpath / name
-
-    def _count_file(self, path: Path) -> int:
-        try:
-            with path.open(encoding="utf8") as f:
-                return sum(1 for line in f if self.matches(line))
-        except OSError, ValueError:
-            log.warning("could not read %s", path, exc_info=True)
-            return 0
-
-    def _count_sync(self) -> int:
-        with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
-            return sum(pool.map(self._count_file, self._iter_files()))
-
-    async def count(self) -> int:
-        return await asyncio.to_thread(self._count_sync)
-
-    @abc.abstractmethod
-    def matches(self, line: str) -> bool: ...
-
-
-@dataclass(kw_only=True)
-class LinesCounter(CodeCounter):
-    """Lines Counter."""
-
-    @override
-    def matches(self, line: str) -> bool:
-        return True
-
-
-@dataclass(kw_only=True)
-class MatchingLinesCounter(CodeCounter):
-    """Matching Lines Counter."""
-
-    substring: str
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        if not self.substring:
-            msg = "substring must be non-empty"
-            raise ValueError(msg)
-
-    @override
-    def matches(self, line: str) -> bool:
-        return self.substring in line
+def count_lines(root: str = ".") -> int:
+    """Count all lines in .py files under `root`."""
+    total = 0
+    for dirpath, dirnames, filenames in Path(root).walk():
+        dirnames[:] = [d for d in dirnames if d not in EXCLUDED_DIRS]
+        for name in filenames:
+            if name.endswith(".py"):
+                try:
+                    with (dirpath / name).open("rb") as f:
+                        total += sum(1 for _ in f)
+                except OSError:
+                    continue
+    return total
