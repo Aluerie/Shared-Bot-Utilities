@@ -6,8 +6,6 @@ Notices
 * Copyright (C) 2020-present @Aluerie.
 """
 
-from __future__ import annotations
-
 from typing import Literal, TypedDict
 
 from shared.apis.local import MatchState  # ruff: ignore[typing-only-first-party-import]

@@ -6,8 +6,6 @@ License
 * Copyright (C) 2020-present @Aluerie.
 """
 
-from __future__ import annotations
-
 import asyncio
 import datetime as dt
 import itertools

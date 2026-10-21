@@ -10,8 +10,6 @@ Notices
 * Copyright (C) 2020-present @Aluerie.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable, Coroutine, Sequence
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar, overload, override
 
