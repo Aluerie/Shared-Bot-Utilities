@@ -104,6 +104,7 @@ class Dota2comClient:
         References
         ----------
         * https://dota2.com/webapi/IDOTA2MatchStats/GetRealtimeStats/v001?server_steam_id=90295464167395331
+        * https://steamapi.xpaw.me/#IDOTA2MatchStats_570/GetRealtimeStats
         """
         if server_steam_id is None:
             msg = "This match does not support real time stats"
