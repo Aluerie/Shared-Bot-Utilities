@@ -12,7 +12,7 @@ import datetime as dt
 from typing import Literal, NamedTuple, assert_never, get_args, overload
 
 from dateutil.relativedelta import relativedelta
-from discord.utils import TimestampStyle, copy_doc, format_dt
+from discord.utils import TimestampStyle, format_dt
 
 from .fmt import plural
 
@@ -316,7 +316,46 @@ def human_timedelta(
 #############################################################################################################################
 
 
-@copy_doc(format_dt)
-def discord(when: dt.datetime, /, style: TimestampStyle | None = None) -> str:
-    """Alias for `discord.utils.format_dt`."""
-    return format_dt(when, style)
+def discord(when: dt.datetime, /, *styles: TimestampStyle) -> str:
+    """Wrap around `discord.utils.format_dt` supporting multiple styles.
+
+    Multiple styles are joined with a space. If no style is given, the
+    default (`f`) is used.
+
+    Supported styles are documented upstream; see `discord.utils.format_dt`.
+    A copy of the table is included here for convenience:
+
+    +-------------+--------------------------------+-------------------------+
+    |    Style    |        Example Output          |       Description       |
+    +=============+================================+=========================+
+    | t           | 22:57                          | Short Time              |
+    +-------------+--------------------------------+-------------------------+
+    | T           | 22:57:58                       | Medium Time             |
+    +-------------+--------------------------------+-------------------------+
+    | d           | 17/05/2016                     | Short Date              |
+    +-------------+--------------------------------+-------------------------+
+    | D           | May 17, 2016                   | Long Date               |
+    +-------------+--------------------------------+-------------------------+
+    | f (default) | May 17, 2016 at 22:57          | Long Date, Short Time   |
+    +-------------+--------------------------------+-------------------------+
+    | F           | Tuesday, May 17, 2016 at 22:57 | Full Date, Short Time   |
+    +-------------+--------------------------------+-------------------------+
+    | s           | 17/05/2016, 22:57              | Short Date, Short Time  |
+    +-------------+--------------------------------+-------------------------+
+    | S           | 17/05/2016, 22:57:58           | Short Date, Medium Time |
+    +-------------+--------------------------------+-------------------------+
+    | R           | 5 years ago                    | Relative Time           |
+    +-------------+--------------------------------+-------------------------+
+
+    Parameters
+    ----------
+    when
+        The datetime to format.
+    styles
+        The styles to format the datetime with.
+
+    Returns
+    -------
+    The formatted string.
+    """
+    return " ".join(format_dt(when, style) for style in (styles or ("f",)))

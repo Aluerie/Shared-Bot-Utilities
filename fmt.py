@@ -78,7 +78,7 @@ def ordinal(n: int | str) -> str:
 
     Dev Note
     --------
-    Remember that there is always a funny lambda possibility
+    Remember that there is a funny lambda possibility
     `ordinal = lambda n: "%d%s" % (n, "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10::4])`
     """
     n = int(n)
