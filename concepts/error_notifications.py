@@ -88,7 +88,7 @@ class ErrorNotificationManager:
             The cooldown between sending errors. This defaults to 5 seconds.
         """
         self.error_webhook: discord.Webhook = bot_base.webhook_from_url(webhook_url)
-        self.ping_role_mention: str = bot_base.ping_role_mention
+        self.ping_role_mention: str = bot_base.dev_ping
         self.cooldown: dt.timedelta = cooldown
 
         self._lock: asyncio.Lock = asyncio.Lock()

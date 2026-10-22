@@ -110,19 +110,18 @@ class UnauthorizedError(SevenTVErrorMixin, errors.RespondAndNotifyError):
                 "It seems bot's 7TV Bearer Token is expired. Irene, please, grab a new one via dev tools or "
                 "figure out how to make the bot automatically refresh it."
             ),
-            response_msg="Ooups, 7TV logged me out; Irene needs to fix it (surely permanently this time)",
+            response="Oops, 7TV logged me out; Irene needs to fix it (surely permanently this time)",
             data=data,
         )
 
 
-class InvokeQueryError(SevenTVErrorMixin, errors.RespondAndNotifyError):
+class InvokeQueryError(SevenTVErrorMixin, errors.SomethingWentWrongError):
     """InvokeQueryError."""
 
     def __init__(self, status: Any, message: Any, code: Any) -> None:
         super().__init__(
             msg=f"{status} {message}",
             data={"status": status, "message": message, "code": code},
-            response_msg=errors.SOMETHING_WENT_WRONG_MESSAGE,
         )
         self.status = status
         self.message = message

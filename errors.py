@@ -12,12 +12,8 @@ Notices
 * Copyright (C) 2020-present @Aluerie.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
-from typing import Any, ClassVar, Final
-
-SOMETHING_WENT_WRONG_MESSAGE: Final = "Something went wrong; Irene has been notified about this"
+from typing import Any, ClassVar
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,27 +51,32 @@ class BotError(CustomError):
     ----------
     policy
         Error handler's desired behavior policy when this error is raised.
-    response_msg
+    response
         Response message to the end-user. This defaults to the exception message (``str(exc)``).
         Use this attribute to set a different message.
     data
         Extra debug data the error handler attaches to the developer notification.
         This data is only used when `policy.notify` is true.
+    default_policy
+        Class-level default policy.
+    use_fallback_response
+        Class-level flag. If true, ``response`` is ignored and the error handler responds with its own fallback message.
     """
 
     default_policy: ClassVar[Policy] = RESPOND
+    use_fallback_response: ClassVar[bool] = False
 
     def __init__(
         self,
         msg: str,
         *,
         policy: Policy | None = None,
-        response_msg: str | None = None,
+        response: str | None = None,
         data: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(msg)
         self.policy: Policy = policy if policy is not None else self.default_policy
-        self.response_msg: str = response_msg or msg
+        self.response: str = response if response is not None else msg
         self.data: dict[str, Any] = data or {}
 
 
@@ -91,6 +92,8 @@ class RespondWithError(BotError):
     that requires an early exit but still with a command response.
     """
 
+    default_policy = RESPOND
+
 
 class RespondAndNotifyError(BotError):
     """Error whose message is shown to the user, and which also notifies developers."""
@@ -101,11 +104,14 @@ class RespondAndNotifyError(BotError):
 class SomethingWentWrongError(RespondAndNotifyError):
     """Placeholder Error for "Something went wrong" situations.
 
-    Error I mostly use for the debugging purposes in places I'm not sure what to do about.
+    The end-user response is not set here: error handlers respond with their own
+    ``fallback_response``, same as for any non-``BotError`` exception.
     """
 
+    use_fallback_response = True
+
     def __init__(self, msg: str, *, data: dict[str, Any] | None = None) -> None:
-        super().__init__(msg, response_msg=SOMETHING_WENT_WRONG_MESSAGE, data=data)
+        super().__init__(msg, response="Something went wrong", data=data)
 
 
 #############################################################################################################################

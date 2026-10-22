@@ -8,9 +8,7 @@ Notices
 
 from __future__ import annotations
 
-import contextlib
 import logging
-from collections.abc import Awaitable, Callable
 from pathlib import Path
 from pkgutil import iter_modules
 from typing import TYPE_CHECKING, Any
@@ -22,6 +20,8 @@ from shared import errors
 from .error_notifications import ErrorNotificationManager
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     import aiohttp
 
 try:
@@ -44,12 +44,12 @@ class BotBase:
         self,
         session: aiohttp.ClientSession,
         *,
-        ping_role_mention: str,
+        dev_ping: str,
         error_webhook_url: str,
         notification_webhook_url: str,
     ) -> None:
         self.session: aiohttp.ClientSession = session
-        self.ping_role_mention: str = ping_role_mention
+        self.dev_ping: str = dev_ping
         self._notification_webhook_url: str = notification_webhook_url
 
         self.error_notification_manager = ErrorNotificationManager(self, error_webhook_url)
@@ -73,7 +73,7 @@ class BotBase:
         send_kwargs: Any
             Kwargs for `webhook.send` method. Look for supported argument in `discord.Webhook.send` method.
         """
-        content = f"{self.ping_role_mention}\n{content}"
+        content = f"{self.dev_ping}\n{content}"
         await self.notification_webhook.send(content, **send_kwargs)
 
     def get_extensions(
@@ -125,11 +125,12 @@ class BotBase:
         log.info("The list of modules (%s total) to load: %s", len(extensions), extensions)
         return extensions
 
+    SOMETHING_WENT_WRONG_MESSAGE = "Something went wrong"
+
     async def _respond_per_policy(
         self,
         error: Exception,
         respond: Callable[[str], Awaitable[object]],
-        non_bot_error_message: str = errors.SOMETHING_WENT_WRONG_MESSAGE,
     ) -> bool:
         """Respond to the user according to the error's policy.
 
@@ -139,14 +140,15 @@ class BotBase:
             Whether Irene should be notified.
         """
         if isinstance(error, errors.BotError):
-            should_respond = error.policy.respond
-            notify = error.policy.notify
-            message = error.response_msg
+            policy = error.policy
+            response = self.SOMETHING_WENT_WRONG_MESSAGE if error.use_fallback_response else error.response
         else:
-            should_respond = True
-            notify = True
-            message = non_bot_error_message
-        if should_respond:
-            with contextlib.suppress(Exception):
-                await respond(message)
-        return notify
+            policy = errors.RESPOND_NOTIFY
+            response = self.SOMETHING_WENT_WRONG_MESSAGE
+
+        if policy.respond:
+            try:
+                await respond(response)
+            except Exception:
+                log.warning("Failed to respond to the user", exc_info=True)
+        return policy.notify
