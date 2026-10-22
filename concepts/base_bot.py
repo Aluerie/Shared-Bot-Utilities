@@ -8,12 +8,16 @@ Notices
 
 from __future__ import annotations
 
+import contextlib
 import logging
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from pkgutil import iter_modules
 from typing import TYPE_CHECKING, Any
 
 import discord
+
+from shared import errors
 
 from .error_notifications import ErrorNotificationManager
 
@@ -120,3 +124,29 @@ class BotBase:
 
         log.info("The list of modules (%s total) to load: %s", len(extensions), extensions)
         return extensions
+
+    async def _respond_per_policy(
+        self,
+        error: Exception,
+        respond: Callable[[str], Awaitable[object]],
+        non_bot_error_message: str = errors.SOMETHING_WENT_WRONG_MESSAGE,
+    ) -> bool:
+        """Respond to the user according to the error's policy.
+
+        Returns
+        -------
+        bool
+            Whether Irene should be notified.
+        """
+        if isinstance(error, errors.BotError):
+            should_respond = error.policy.respond
+            notify = error.policy.notify
+            message = error.response_msg
+        else:
+            should_respond = True
+            notify = True
+            message = non_bot_error_message
+        if should_respond:
+            with contextlib.suppress(Exception):
+                await respond(message)
+        return notify
