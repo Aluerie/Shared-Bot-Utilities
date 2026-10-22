@@ -64,8 +64,8 @@ class ErrorNotificationManager:
         "_shorten_re",
         "_shortenings",
         "cooldown",
+        "dev_ping",
         "error_webhook",
-        "ping_role_mention",
     )
 
     def __init__(
@@ -88,7 +88,7 @@ class ErrorNotificationManager:
             The cooldown between sending errors. This defaults to 5 seconds.
         """
         self.error_webhook: discord.Webhook = bot_base.webhook_from_url(webhook_url)
-        self.ping_role_mention: str = bot_base.dev_ping
+        self.dev_ping: str = bot_base.dev_ping
         self.cooldown: dt.timedelta = cooldown
 
         self._lock: asyncio.Lock = asyncio.Lock()
@@ -158,7 +158,7 @@ class ErrorNotificationManager:
         """
         code_chunks = list(self._yield_code_chunks(traceback_string))
 
-        await self.error_webhook.send(self.ping_role_mention)
+        await self.error_webhook.send(self.dev_ping)
         for chunk in code_chunks:
             await self.error_webhook.send(chunk)
         await self.error_webhook.send(embed=embed)

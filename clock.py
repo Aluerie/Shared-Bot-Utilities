@@ -311,6 +311,11 @@ def human_timedelta(
     return _select_parts(amounts, mode, max_units)
 
 
+#############################################################################################################################
+# DISCORD TIMESTAMPS
+#############################################################################################################################
+
+
 @copy_doc(format_dt)
 def discord(when: dt.datetime, /, style: TimestampStyle | None = None) -> str:
     """Alias for `discord.utils.format_dt`."""
