@@ -1,7 +1,7 @@
 """Tasks.
 
-Source
-------
+References
+----------
 * `discord.ext.tasks` (MIT License)
 
 Notices
@@ -10,17 +10,18 @@ Notices
 * Copyright (C) 2020-present @Aluerie.
 """
 
-from __future__ import annotations
-
-from collections.abc import Callable, Coroutine, Sequence
+from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar, overload, override
 
 import discord
 from discord.ext import tasks
 from discord.utils import MISSING
 
+from shared import errors, fmt
+
 if TYPE_CHECKING:
     import datetime as dt
+    from collections.abc import Sequence
 
     from .error_notifications import ErrorNotificationManager
 
@@ -29,24 +30,14 @@ if TYPE_CHECKING:
 
         error_notification_manager: ErrorNotificationManager
 
-        @staticmethod
-        def add_codeblock_field(
-            embed: discord.Embed, *, data: dict[str, Any], field_name: str = "Extra Data"
-        ) -> discord.Embed: ...
-
         # All 3 (Discord, Twitch, Steam) bot libraries have `wait_until_ready` in the bot class - so we get to be cheeky
-        async def wait_until_ready(self) -> None:
-            return
+        async def wait_until_ready(self) -> None: ...
 
     class CogWithTasksProtocol(Protocol):
         bot: BotWithTasksProtocol
 
 
-# fmt: off
-__all__ = (
-    'loop',
-)
-# fmt: on
+__all__ = ("loop",)
 
 
 _func = Callable[..., Coroutine[Any, Any, Any]]
@@ -118,9 +109,15 @@ class Loop(tasks.Loop[LF]):
         embed = discord.Embed(
             colour=0x1A7A8A,
             title=f"Task Error `{getattr(self.coro, '__qualname__', 'unknown coro')}`",
+            description="The task has stopped and will not run again until restarted.",
         )
-        if debug_data := getattr(exception, "debug_data", None):
-            embed = cog.bot.add_codeblock_field(embed, data=debug_data)
+        fmt.add_mapping_field(
+            embed,
+            "Loop State",
+            {"current_loop": self.current_loop, "next_iteration": self.next_iteration, "count": self.count},
+        )
+        if isinstance(exception, errors.BotError) and exception.data:
+            fmt.add_mapping_field(embed, "Bot", exception.data)
         await cog.bot.error_notification_manager.register(exception, embed)
 
 
@@ -148,6 +145,10 @@ def loop(
 ) -> Callable[[LF], Loop[LF]]: ...
 
 
+# Warning
+# -------
+# if `discord.ext.tasks` gets extra cool features which will be represented in a change of `tasks.loop`
+# decorator/signature we would need to manually update this function and/or Loop class)
 @discord.utils.copy_doc(tasks.loop)
 def loop(
     *,
@@ -160,14 +161,7 @@ def loop(
     name: str | None = None,
     wait_for_ready: bool = False,
 ) -> Callable[[LF], Loop[LF]]:
-    """Copy-pasted `loop` decorator from `discord.ext.tasks` corresponding to AluLoop class.
-
-    .. warning::
-
-        * if `discord.ext.tasks` gets extra cool features which will be represented in a change of `tasks.loop`
-          decorator/signature we would need to manually update this function and/or Loop class)
-
-    """
+    """Copy-pasted `loop` decorator from `discord.ext.tasks` corresponding to Loop class."""
 
     def decorator(func: LF) -> Loop[LF]:
         return Loop(

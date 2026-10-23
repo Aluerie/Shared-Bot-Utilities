@@ -129,7 +129,7 @@ class BotBase:
 
     SOMETHING_WENT_WRONG_MESSAGE = "Something went wrong"
 
-    async def _respond_per_policy(
+    async def respond_per_policy(
         self,
         error: Exception,
         respond: Callable[[str], Awaitable[object]],

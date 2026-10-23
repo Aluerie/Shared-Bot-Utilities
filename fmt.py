@@ -6,20 +6,28 @@ Notices
 * Copyright (C) 2020-present @Aluerie.
 """
 
-from __future__ import annotations
-
 import pprint
 from typing import TYPE_CHECKING, Any, override
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
+
+    import discord
 
 
 __all__ = (
+    "CODE_LANGUAGES",
+    "add_args_field",
+    "add_mapping_field",
     "codeblock",
+    "human_join",
     "ordinal",
+    "pformat_args",
+    "pformat_mapping",
     "plural",
 )
+
+_EMBED_FIELD_VALUE_LIMIT = 1024
 
 # fmt: off
 # cSpell:disable
@@ -46,7 +54,11 @@ CODE_LANGUAGES = [
     "vbscript-html", "verilog", "vhdl", "vim", "wasm", "wren", "x86asm", "xl", "xquery", "zephir",
 ]
 # fmt: on
-# # cSpell:enable
+# cSpell:enable
+
+
+def _escape_backticks(text: str) -> str:
+    return text.replace("```", "``\u200b`")
 
 
 def codeblock(text: str, language: str = "py") -> str:
@@ -57,20 +69,42 @@ def codeblock(text: str, language: str = "py") -> str:
 
     See `fmt.CODE_LANGUAGES` for the code languages Discord supports.
     """
-    safe_text = text.replace("```", "``\u200b`")
-    return f"```{language}\n{safe_text}\n```"
+    return f"```{language}\n{_escape_backticks(text)}\n```"
 
 
-def pformat_args(*args: Any) -> str:
-    """Pretty-format args into a Discord codeblock."""
-    return pformat_kwargs(**{f"arg_{i}": arg for (i, arg) in enumerate(args)})
+def _safe_pformat(value: Any) -> str:
+    try:
+        return pprint.pformat(value, indent=4, width=60)
+    except Exception:  # ruff: ignore[blind-except]
+        return f"<unprintable {type(value).__name__}>"
 
 
-def pformat_kwargs(**kwargs: Any) -> str:
-    """Pretty-format kwargs into a Discord codeblock."""
-    if not kwargs:
+def pformat_mapping(mapping: Mapping[str, Any], *, limit: int | None = None) -> str:
+    """Pretty-format a mapping into a Discord codeblock, optionally capped at `limit` characters in total."""
+    if not mapping:
         return codeblock("No arguments")
-    return codeblock("\n".join(f"{name}={pprint.pformat(value, indent=4)}" for name, value in kwargs.items()))
+
+    text = _escape_backticks("\n".join(f"{name}={_safe_pformat(value)}" for name, value in mapping.items()))
+    if limit is not None:
+        room = limit - len(codeblock(""))
+        if len(text) > room:
+            text = text[: room - 1] + "…"
+    return codeblock(text)
+
+
+def pformat_args(*args: Any, limit: int | None = None) -> str:
+    """Pretty-format args into a Discord codeblock, optionally capped at `limit` characters in total."""
+    return pformat_mapping({f"arg_{i}": arg for i, arg in enumerate(args)}, limit=limit)
+
+
+def add_mapping_field(embed: discord.Embed, name: str, mapping: Mapping[str, Any]) -> discord.Embed:
+    """Add a field with a pretty-formatted mapping that is guaranteed to fit Discord's field value limit."""
+    return embed.add_field(name=name, value=pformat_mapping(mapping, limit=_EMBED_FIELD_VALUE_LIMIT), inline=False)
+
+
+def add_args_field(embed: discord.Embed, name: str, *args: Any) -> discord.Embed:
+    """Add a field with pretty-formatted args that is guaranteed to fit Discord's field value limit."""
+    return embed.add_field(name=name, value=pformat_args(*args, limit=_EMBED_FIELD_VALUE_LIMIT), inline=False)
 
 
 def ordinal(n: int | str) -> str:
@@ -119,12 +153,12 @@ class plural:  # ruff: ignore[invalid-class-name]
         if skip_number:
             format_spec = format_spec[:-1]
 
-        singular, _, plural = format_spec.partition("|")  # _ is `separator`
-        plural = plural or f"{singular}s"
+        singular_form, _, plural_form = format_spec.partition("|")  # _ is `separator`
+        plural_form = plural_form or f"{singular_form}s"
 
         if skip_number:
-            return singular if abs(number) == 1 else plural
-        return f"{number} {singular}" if abs(number) == 1 else f"{number} {plural}"
+            return singular_form if abs(number) == 1 else plural_form
+        return f"{number} {singular_form}" if abs(number) == 1 else f"{number} {plural_form}"
 
 
 def human_join(seq: Sequence[str], delim: str = ", ", final: str = "or") -> str:
