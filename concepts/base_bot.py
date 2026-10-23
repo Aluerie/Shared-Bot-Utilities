@@ -46,11 +46,11 @@ class BotBase:
         *,
         dev_ping: str,
         error_webhook_url: str,
-        notification_webhook_url: str,
+        spam_webhook_url: str,
     ) -> None:
         self.session: aiohttp.ClientSession = session
         self.dev_ping: str = dev_ping
-        self._notification_webhook_url: str = notification_webhook_url
+        self._spam_webhook_url: str = spam_webhook_url
 
         self.error_notification_manager = ErrorNotificationManager(self, error_webhook_url)
 
@@ -59,9 +59,16 @@ class BotBase:
         return discord.Webhook.from_url(url=url, session=self.session)
 
     @discord.utils.cached_property
-    def notification_webhook(self) -> discord.Webhook:
-        """Webhook in hideout server to send notifications to the developer(-s)."""
-        return self.webhook_from_url(self._notification_webhook_url)
+    def spam_webhook(self) -> discord.Webhook:
+        """Webhook in hideout server which devoted to the bot.
+
+        Used for
+        * error notifications
+        * developer notifications
+        * miscellaneous messages
+        * etc
+        """
+        return self.webhook_from_url(self._spam_webhook_url)
 
     async def notify_developers(self, content: str = "", **send_kwargs: Any) -> None:
         """Notify developers.
@@ -74,7 +81,7 @@ class BotBase:
             Kwargs for `webhook.send` method. Look for supported argument in `discord.Webhook.send` method.
         """
         content = f"{self.dev_ping}\n{content}"
-        await self.notification_webhook.send(content, **send_kwargs)
+        await self.spam_webhook.send(content, **send_kwargs)
 
     def get_extensions(
         self,
