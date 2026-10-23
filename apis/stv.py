@@ -70,7 +70,7 @@ __all__ = (
     "PartialEmoteSet",
     "PartialUser",
     "ServiceError",
-    "StvGraphQLClient",
+    "StvClient",
     "UnauthorizedError",
     "UnsatisfyingResultError",
 )
