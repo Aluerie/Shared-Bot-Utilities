@@ -44,8 +44,8 @@ class CustomError(Exception):
 class BotError(CustomError):
     """The base exception for my (@Aluerie) Bot projects. All other exceptions should inherit from this.
 
-    This class introduces various attributes to control whether error handlers should respond to the end-user or/and send
-    a notification message to the bot's developers.
+    This class introduces various attributes to control whether error handlers should respond to the end-user
+    or/and send a notification message to the bot's developers.
 
     Attributes
     ----------
@@ -80,9 +80,9 @@ class BotError(CustomError):
         self.data: dict[str, Any] = data or {}
 
 
-#############################################################################################################################
+########################################################################################################################
 # GENERAL ERRORS
-#############################################################################################################################
+########################################################################################################################
 
 
 class RespondWithError(BotError):
@@ -114,9 +114,9 @@ class SomethingWentWrongError(RespondAndNotifyError):
         super().__init__(msg, response="Something went wrong", data=data)
 
 
-#############################################################################################################################
+########################################################################################################################
 # MORE SPECIFIC ERRORS
-#############################################################################################################################
+########################################################################################################################
 
 
 class NotAllowedError(BotError):
