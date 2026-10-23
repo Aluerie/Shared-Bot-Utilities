@@ -169,8 +169,8 @@ flags {
 class PartialEmote:
     """Partial Emote."""
 
-    def __init__(self, client: StvGraphQLClient, emote_id: str) -> None:
-        self._client: StvGraphQLClient = client
+    def __init__(self, client: StvClient, emote_id: str) -> None:
+        self._client: StvClient = client
         self.id: str = emote_id
         self._animated: bool | None = None
 
@@ -220,7 +220,7 @@ class PartialEmote:
 class Emote(PartialEmote):
     """Emote."""
 
-    def __init__(self, client: StvGraphQLClient, data: EmotePayload) -> None:
+    def __init__(self, client: StvClient, data: EmotePayload) -> None:
         super().__init__(client, data.get("id"))
         self.owner_id: str = data.get("ownerId")
         self.default_name: str = data.get("defaultName")
@@ -237,7 +237,7 @@ class EmoteSetEmote:
 
     def __init__(
         self,
-        client: StvGraphQLClient,
+        client: StvClient,
         alias: str,
         emote: str | PartialEmote | Emote,
         emote_set: str | PartialEmoteSet,
@@ -259,8 +259,8 @@ class EmoteSetEmote:
 class PartialEmoteSet:
     """Partial Emote Set."""
 
-    def __init__(self, client: StvGraphQLClient, emote_set_id: str) -> None:
-        self._client: StvGraphQLClient = client
+    def __init__(self, client: StvClient, emote_set_id: str) -> None:
+        self._client: StvClient = client
         self.id: str = emote_set_id
 
     @override
@@ -504,8 +504,8 @@ query GetWhoAdded($emoteSetId: Id!, $emoteId: Id!) {
 class PartialUser:
     """Partial Emote Set."""
 
-    def __init__(self, client: StvGraphQLClient, twitch_id: str) -> None:
-        self._client: StvGraphQLClient = client
+    def __init__(self, client: StvClient, twitch_id: str) -> None:
+        self._client: StvClient = client
         self.twitch_id: str = twitch_id
 
     async def fetch_active_emote_set(self) -> PartialEmoteSet:
@@ -720,7 +720,7 @@ class EmoteSetInfo(NamedTuple):
 #############################################################################################################################
 
 
-class StvGraphQLClient:
+class StvClient:
     """Seven TV GraphQL API Wrapper.
 
     This class offers a few methods to perform some common operations with 7TV.
