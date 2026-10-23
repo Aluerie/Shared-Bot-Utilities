@@ -84,7 +84,9 @@ class Dota2comClient:
         async with self.session.get(
             url=f"https://www.dota2.com/{endpoint}",
             params=query_kwargs,
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"},
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+            },
         ) as resp:
             return await resp.json(loads=orjson.loads)
 

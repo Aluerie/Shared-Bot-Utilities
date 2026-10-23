@@ -119,7 +119,10 @@ def _extraction_generator[T](
 
 
 def _extraction_generator[T](
-    query: str, choices: Sequence[str] | dict[str, T], scorer: Callable[[str, str], int] = quick_ratio, score_cutoff: int = 0
+    query: str,
+    choices: Sequence[str] | dict[str, T],
+    scorer: Callable[[str, str], int] = quick_ratio,
+    score_cutoff: int = 0,
 ) -> Generator[tuple[str, int, T] | tuple[str, int]]:
     if isinstance(choices, dict):
         for key, value in choices.items():
@@ -324,7 +327,9 @@ def finder[T](
 
 
 @overload
-def finder[T](text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., raw: bool = ...) -> list[T]: ...
+def finder[T](
+    text: str, collection: Iterable[T], *, key: Callable[[T], str] | None = ..., raw: bool = ...
+) -> list[T]: ...
 
 
 def finder[T](

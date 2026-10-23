@@ -113,7 +113,9 @@ class BotBase:
         # assume running full bot functionality (besides `DISABLED_MODULES`)
         current_folder = f"src/{package}"
         extensions: tuple[str, ...] = ()
-        ext_categories = [path for path in Path(current_folder).iterdir() if path.is_dir() and not path.name.startswith("_")]
+        ext_categories = [
+            path for path in Path(current_folder).iterdir() if path.is_dir() and not path.name.startswith("_")
+        ]
         for ext_category in ext_categories:
             # Personal and Public modules
             extensions += tuple(

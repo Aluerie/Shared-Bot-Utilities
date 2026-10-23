@@ -36,11 +36,11 @@ class ErrorNotificationManager:
 
     This sends all exceptions to a discord webhook with a role-ping so developers are notified as quickly as possible.
     Also logs the exceptions to the console. For some reason, default implementation of discord.py and similar libraries
-    silently ignored the errors. This class in combination with error handlers (e.g. command error/event error/task error)
-    make sure everything is both logged to the console and sent to the developers.
+    silently ignored the errors. This class in combination with error handlers (e.g. command error/event error/
+    task error) make sure everything is both logged to the console and sent to the developers.
 
-    This class handles cooldowns with a simple lock, so we don't have to worry about rate limiting our webhook (as long as
-    we don't use it elsewhere).
+    This class handles cooldowns with a simple lock, so we don't have to worry about rate limiting our webhook
+    (as long as we don't use it elsewhere).
 
     Attributes
     ----------

@@ -5,8 +5,8 @@ However, there are seemingly multiple unsolvable issues that comes to such struc
 * If steam is down (even Tuesday Maintenance) then both bots go down;
 * steamIO has some issue with reconnecting to steam;
 
-In the end, it seems that the best solution to this problem is run steam bot in a separate process so if it dies/struggles
-then my twitch/discord bots are unaffected.
+In the end, it seems that the best solution to this problem is run steam bot in a separate process so if
+it dies/struggles then my twitch/discord bots are unaffected.
 
 So currently, Dota2Bot hosts its API at localhost:8000.
 Mostly, Dota 2 and steam related functionality. Maybe more incoming in future.
@@ -90,7 +90,9 @@ class FriendLiveMatch:
     def __init__(self, data: schemas.StreamerLiveMatch) -> None:
         self.id: int | None = data.get("id")
         self.game_mode: GameMode | None = GameMode.try_value(gm) if (gm := data.get("game_mode")) is not None else None
-        self.lobby_type: LobbyType | None = LobbyType.try_value(lt) if (lt := data.get("lobby_type")) is not None else None
+        self.lobby_type: LobbyType | None = (
+            LobbyType.try_value(lt) if (lt := data.get("lobby_type")) is not None else None
+        )
         self.tag: str = data["tag"]
         self.message: str = data["message"]
         self.server_steam_id: int | None = data["server_steam_id"]
@@ -284,5 +286,7 @@ class LocalAPI:
 
     async def get_accept_invite(self, friend_id: int, twitch_id: str) -> SteamUser:
         """Get steam id and add it pending invites. Converts ID from ID/URL to friend ID."""
-        data: schemas.SteamUser = await self._invoke(endpoint=f"/accept_invite/?friend_id={friend_id}&twitch_id={twitch_id}")
+        data: schemas.SteamUser = await self._invoke(
+            endpoint=f"/accept_invite/?friend_id={friend_id}&twitch_id={twitch_id}"
+        )
         return SteamUser(data)

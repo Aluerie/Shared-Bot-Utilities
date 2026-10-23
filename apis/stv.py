@@ -306,7 +306,8 @@ query EmotesInSet($id: Id!, $query: String, $page: Int!, $perPage: Int!) {
         Returns
         -------
         str
-            Emote's `alias` in the mentioned emote set. If alias wasn't set, it still returns `defaultName` for the emote.
+            Emote's `alias` in the mentioned emote set. If alias wasn't set, it still returns `defaultName`
+            for the emote.
 
         """
         res = await self._client.invoke(
@@ -762,8 +763,10 @@ class StvGraphQLClient:
         query: str
             GraphQL query.
         variables: Mapping[str, Any]
-            (Mapping[str, Any] is type-hinting crunch to be compatible with TypedDict, this is supposed to be dict[str, Any])
             Dictionary of variables to be provided with query into `json` kwarg of GraphQL request.
+
+            Mapping[str, Any] is type-hinting crunch to be compatible with TypedDict,
+            this is supposed to be dict[str, Any].
 
         Returns
         -------
@@ -780,7 +783,9 @@ class StvGraphQLClient:
                 (self.session).post(
                     url="https://api.7tv.app/v4/gql",
                     json={"query": query, "variables": variables},
-                    headers={"Authorization": f"Bearer {self._bearer_token}"} if self._bearer_token is not None else None,
+                    headers={"Authorization": f"Bearer {self._bearer_token}"}
+                    if self._bearer_token is not None
+                    else None,
                 ) as response,
             ):
                 if response.ok:

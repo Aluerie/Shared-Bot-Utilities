@@ -127,7 +127,8 @@ class CommitInfo:
     def emojified_title(self) -> str | None:
         """Emojified commit's short title.
 
-        If title contains ":some_emoji_name:" then this replaces it with a corresponding unicode character (from gitmojis).
+        If title contains ":some_emoji_name:" then this replaces it with a corresponding unicode character
+        (from gitmojis).
 
         Example
         -------

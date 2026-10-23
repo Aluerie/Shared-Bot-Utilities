@@ -70,7 +70,8 @@ class Loop(tasks.Loop[LF]):
     * `before_loop`/`after_loop` only happens before/after the whole "loop" task is done,
       it doesn't trigger before/after iteration. The name clearly indicates that but I got confused once.
     * `cancel` - not graceful, `stop` - graceful. I have no idea how to remember that.
-    * `after_loop` will be triggered after both `stop`/`cancel`. The way to distinguish is `is_being_cancelled` property.
+    * `after_loop` will be triggered after both `stop`/`cancel`.
+      The way to distinguish is `is_being_cancelled` property.
     """
 
     def __init__(
