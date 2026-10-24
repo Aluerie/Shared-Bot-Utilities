@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, NamedTuple, TypedDict
 
-from shared import errors
+from shared import errors, globs
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
@@ -180,23 +180,20 @@ async def translate(
     session: ClientSession,
 ) -> TranslateResult:
     """Google Translate."""
-    query = {
-        "dj": "1",
-        "dt": ["sp", "t", "ld", "bd"],
-        "client": "dict-chrome-ex",  # Needs to be dict-chrome-ex or else you'll get a 403 error.
-        "sl": source_language,
-        "tl": target_language,
-        "q": text,
-    }
-
-    headers = {
-        "User-Agent": (  # cSpell: ignore KHTML
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/104.0.0.0 Safari/537.36"
-        )
-    }
-
-    async with session.get("https://clients5.google.com/translate_a/single", params=query, headers=headers) as resp:
+    async with session.get(
+        url="https://clients5.google.com/translate_a/single",
+        params={
+            "dj": "1",
+            "dt": ["sp", "t", "ld", "bd"],
+            "client": "dict-chrome-ex",  # Needs to be dict-chrome-ex or else you'll get a 403 error.
+            "sl": source_language,
+            "tl": target_language,
+            "q": text,
+        },
+        headers={
+            "User-Agent": globs.USER_AGENT,
+        },
+    ) as resp:
         if resp.status != 200:
             raise TranslateError(resp.status, text=await resp.text())
 

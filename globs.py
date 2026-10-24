@@ -13,10 +13,16 @@ Notices
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Final
 
 __all__ = (
     "DIGITS",
+    "USER_AGENT",
     "TwitchEmote",
+)
+
+USER_AGENT: Final = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36"
 )
 
 DIGITS = [

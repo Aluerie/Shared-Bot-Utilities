@@ -10,7 +10,7 @@ import pprint
 from typing import TYPE_CHECKING, Any, override
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Iterable, Mapping, Sequence
 
     import discord
 
@@ -19,6 +19,7 @@ __all__ = (
     "CODE_LANGUAGES",
     "add_args_field",
     "add_mapping_field",
+    "bullet_list",
     "codeblock",
     "human_join",
     "ordinal",
@@ -192,3 +193,11 @@ def human_join(seq: Sequence[str], delim: str = ", ", final: str = "or") -> str:
         return f"{seq[0]} {final} {seq[1]}"
 
     return delim.join(seq[:-1]) + f" {final} {seq[-1]}"
+
+
+def bullet_list(items: Iterable[str]) -> str:
+    """Render items as a Markdown bullet list.
+
+    This assumes that items do not have line breaks.
+    """
+    return "\n".join(f"* {item}" for item in items)

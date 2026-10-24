@@ -127,6 +127,18 @@ class BadUserInputError(BotError):
     """Error indicating there was a problem with the user input."""
 
 
+class EmptyResponseError(SomethingWentWrongError):
+    """EmptyResponseError."""
+
+
+class ResponseNotOkError(SomethingWentWrongError):
+    """ResponseNotOkError."""
+
+
+class TooManyFailsError(SomethingWentWrongError):
+    """TooManyFailsError."""
+
+
 ########################################
 # ERRORS CONTROLLING RESPONSE BEHAVIOR #
 ########################################

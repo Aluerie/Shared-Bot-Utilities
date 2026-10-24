@@ -19,6 +19,7 @@ import datetime as dt
 import itertools
 import logging
 from typing import TYPE_CHECKING, Any
+from warnings import deprecated
 
 import orjson
 from steam.ext.dota2 import GameMode, Hero, LobbyType
@@ -80,7 +81,7 @@ class Dota2comClient:
         self.session: ClientSession = session
 
     async def _invoke(self, endpoint: str, **query_kwargs: Any) -> Any:
-        """Invoke a request to OpenDota API."""
+        """Invoke a request to Dota2com webapi/datafeed."""
         async with self.session.get(
             url=f"https://www.dota2.com/{endpoint}",
             params=query_kwargs,
@@ -100,8 +101,14 @@ class Dota2comClient:
         data: list[schemas.HeroListHero] = await self._invoke("datafeed/herolist", language=language)
         return [HeroListHero(d) for d in data]
 
+    @deprecated("Use steam_web.py's get_real_time_stats instead")
     async def real_time_stats(self, server_steam_id: int | None) -> RealTimeStats:
         """Get real time stats.
+
+        .. warning::
+
+            This seems to perform worse than steam web API version. Starting from an incognito tab - it often takes 5-6
+            page reloads for dota2.com's web-api to respond while steam web API is 1-2 tries, on average.
 
         References
         ----------
