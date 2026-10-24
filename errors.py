@@ -127,6 +127,10 @@ class BadUserInputError(BotError):
     """Error indicating there was a problem with the user input."""
 
 
+class UnsupportedError(RespondWithError):
+    """UnsupportedError."""
+
+
 class EmptyResponseError(SomethingWentWrongError):
     """EmptyResponseError."""
 

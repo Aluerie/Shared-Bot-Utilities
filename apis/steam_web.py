@@ -205,7 +205,7 @@ class SteamWebAPIClient:
         msg = f"Steam Web API kept failing for endpoint {endpoint!r} with {query_kwargs}."
         raise errors.TooManyFailsError(msg) from last_exc
 
-    async def get_real_time_stats(self, server_steam_id: int) -> RealTimeStats:
+    async def get_real_time_stats(self, server_steam_id: int | None) -> RealTimeStats:
         """Get live stats for an in-progress Dota 2 match.
 
         Parameters
@@ -217,6 +217,10 @@ class SteamWebAPIClient:
         ----------
         * https://steamapi.xpaw.me/#IDOTA2MatchStats_570/GetRealtimeStats.
         """
+        if server_steam_id is None:
+            msg = "This match does not support real time stats"
+            raise errors.UnsupportedError(msg)
+
         data: schemas.RealTimeStats = await self._get_json(
             "IDOTA2MatchStats_570/GetRealtimeStats/v1", server_steam_id=server_steam_id
         )
