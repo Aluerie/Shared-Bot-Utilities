@@ -131,7 +131,6 @@ class BotBase:
                 if extension.name not in disabled_extensions
             )
 
-        log.info("The list of modules (%s total) to load: %s", len(extensions), extensions)
         return extensions
 
     SOMETHING_WENT_WRONG_MESSAGE = "Something went wrong"

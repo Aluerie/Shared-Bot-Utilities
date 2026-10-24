@@ -27,6 +27,7 @@ __all__ = (
     "plural",
 )
 
+_MAX_KWARG_NAME_WIDTH = 20
 _EMBED_FIELD_VALUE_LIMIT = 1024
 
 # fmt: off
@@ -80,11 +81,17 @@ def _safe_pformat(value: Any) -> str:
 
 
 def pformat_mapping(mapping: Mapping[str, Any], *, limit: int | None = None) -> str:
-    """Pretty-format a mapping into a Discord codeblock, optionally capped at `limit` characters in total."""
+    """Pretty-format a mapping into a Discord codeblock, optionally capped at `limit` characters in total.
+
+    one `{name} = {value}` entry per line, with the '=' signs aligned.
+    """
     if not mapping:
         return codeblock("No arguments")
 
-    text = _escape_backticks("\n".join(f"{name}={_safe_pformat(value)}" for name, value in mapping.items()))
+    name_width = min(max(map(len, mapping)), _MAX_KWARG_NAME_WIDTH)
+    indent = "\n" + " " * (name_width + 3)  # name + " = "
+    lines = (f"{name:<{name_width}} = {_safe_pformat(value).replace('\n', indent)}" for name, value in mapping.items())
+    text = _escape_backticks("\n".join(lines))
     if limit is not None:
         room = limit - len(codeblock(""))
         if len(text) > room:
