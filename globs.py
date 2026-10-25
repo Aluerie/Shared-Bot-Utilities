@@ -54,3 +54,9 @@ class TwitchEmote(StrEnum):
     CaitThinking = "CaitThinking"
 
     # Twitch.tv @IrenesBot Sub Emotes
+
+
+class Logo(StrEnum):
+    """Logo image urls."""
+
+    Twitch = "https://cdn3.iconfinder.com/data/icons/social-messaging-ui-color-shapes-2-free/128/social-twitch-circle-512.png"
