@@ -201,3 +201,26 @@ def bullet_list(items: Iterable[str]) -> str:
     This assumes that items do not have line breaks.
     """
     return "\n".join(f"* {item}" for item in items)
+
+
+def shorten(text: str, limit: int) -> str:
+    """Truncate text to at most `limit` characters.
+
+    If the text is longer than `limit`, it is cut mid-word and the last character is replaced with a single-character
+    ellipsis ("…"), so the result is never longer than `limit`.
+
+    Parameters
+    ----------
+    text
+        The string to truncate.
+    limit
+        The maximum length of the returned string.
+
+    Returns
+    -------
+    The original text if it fits within `limit`, otherwise the truncated text ending in "…". Returns an empty string
+    if `limit` is not positive.
+    """
+    if len(text) <= limit:
+        return text
+    return text[: max(limit - 1, 0)] + "…" if limit > 0 else ""

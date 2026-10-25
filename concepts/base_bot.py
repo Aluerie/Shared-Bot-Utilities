@@ -9,7 +9,6 @@ Notices
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from pkgutil import iter_modules
 from typing import TYPE_CHECKING, Any
 
@@ -21,6 +20,7 @@ from .error_notifications import ErrorNotificationManager
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
+    from types import ModuleType
 
     import aiohttp
 
@@ -39,6 +39,8 @@ log.setLevel(logging.INFO)
 
 class BotBase:
     """Bot Base."""
+
+    SOMETHING_WENT_WRONG_MESSAGE = "Something went wrong"
 
     def __init__(
         self,
@@ -87,53 +89,34 @@ class BotBase:
         self,
         *,
         is_subset_mode: bool,
-        package: str,
-        disabled_extensions: tuple[str, ...],
+        package: ModuleType,
     ) -> tuple[str, ...]:
         """Get list of bot extensions to load.
 
-        Discord.py uses term 'extensions' so I will use it too, however keep in mind that some libraries
-        prefer other words, e.g. twitchIO calls it 'modules'.
+        .. note::
 
-        I keep those extensions in `ext` folder.
+            Discord.py uses term 'extensions' so I will use it too, however keep in mind that some libraries
+            prefer other words, e.g. twitchIO calls it 'modules'.
+
+        Parameters
+        ----------
+        is_subset_mode
+            If True, return only the extensions listed in `SUBSET`.
+        package
+            The package that holds the extensions, e.g. the imported `ext` module.
 
         Returns
         -------
-        tuple[str, ...]
-            Tuple of extensions for the bot to load.
-            The extensions are given in a full dot form.
-            Example: `('ext.personal.alerts', 'ext.dev.control', 'ext.public.dota_rp_flow', )`
+        Extensions in full dotted form, e.g. `('ext.alerts', 'ext.control', 'ext.dev')`.
         """
         if is_subset_mode:
-            # We only need modules from SUBSET
-            # Also load `ext.beta`
-            return (
-                *tuple(
-                    f"ext.{category}.{extension}"
-                    for category, extensions in SUBSET.items()
-                    for extension in extensions
-                    if extensions
-                ),
-                "ext.beta",
-            )
+            return tuple(f"{package.__name__}.{extension}" for extension in SUBSET)
 
-        # assume running full bot functionality (besides `DISABLED_MODULES`)
-        current_folder = f"src/{package}"
-        extensions: tuple[str, ...] = ()
-        ext_categories = [
-            path for path in Path(current_folder).iterdir() if path.is_dir() and not path.name.startswith("_")
-        ]
-        for ext_category in ext_categories:
-            # Personal and Public modules
-            extensions += tuple(
-                extension.name
-                for extension in iter_modules([ext_category.absolute()], prefix=f"{package}.{ext_category.name}.")
-                if extension.name not in disabled_extensions
-            )
-
-        return extensions
-
-    SOMETHING_WENT_WRONG_MESSAGE = "Something went wrong"
+        return tuple(
+            module_info.name
+            for module_info in iter_modules(package.__path__, prefix=f"{package.__name__}.")
+            if not module_info.name.rpartition(".")[2].startswith("_")
+        )
 
     async def respond_per_policy(
         self,

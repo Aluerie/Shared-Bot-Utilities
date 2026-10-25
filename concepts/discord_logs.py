@@ -12,7 +12,7 @@ import asyncio
 import datetime as dt
 import logging
 import traceback
-from typing import TYPE_CHECKING, ClassVar, override
+from typing import TYPE_CHECKING, ClassVar, override, Final
 
 import discord
 from discord.utils import MISSING
@@ -96,20 +96,20 @@ class DiscordWebhookLogs:
         are filtered out.
     """
 
-    EXACT_AVATAR_MAPPING: ClassVar[dict[str, str]] = {
+    EXACT_AVATAR_MAPPING: Final[dict[str, str]] = {
         "error_notification_manager": "https://em-content.zobj.net/source/microsoft/378/sos-button_1f198.png",
     }
-    INCLUSIVE_AVATAR_MAPPING: ClassVar[dict[str, str]] = {
+    INCLUSIVE_AVATAR_MAPPING: Final[dict[str, str]] = {
         "twitchio.": "https://raw.githubusercontent.com/Aluerie/AluBot/main/assets/images/logo/twitchio.png",
         "discord.": "https://cdn.discordapp.com/icons/336642139381301249/3aa641b21acded468308a37eef43d7b3.png?size=256",
     }
-
-    LEVEL_EMOJIS: ClassVar[dict[str, str]] = {
+    LEVEL_EMOJIS: Final[dict[str, str]] = {
         "INFO": "\N{INFORMATION SOURCE}\ufe0f",
         "WARNING": "\N{WARNING SIGN}\ufe0f",
         "ERROR": "\N{CROSS MARK}",
         "CRITICAL": "\N{COLLISION SYMBOL}",
     }
+    EXTRA_EXACT_AVATAR_MAPPING: ClassVar[dict[str, str]] = {}
 
     def __init__(self, webhook_url: str, session: ClientSession) -> None:
         self.webhook_url: str = webhook_url
@@ -122,7 +122,6 @@ class DiscordWebhookLogs:
         self.logs_handler = LoggingHandler(self)
 
         self.rate_limit_message: str = ""
-        self.extra_exact_avatar_mapping: dict[str, str] = {}
 
     @discord.utils.cached_property
     def logger_webhook(self) -> discord.Webhook:
@@ -161,7 +160,7 @@ class DiscordWebhookLogs:
         The avatar URL, or `MISSING` to use the webhook's default avatar.
         """
         # exact name
-        if (avatar_url := (self.EXACT_AVATAR_MAPPING | self.extra_exact_avatar_mapping).get(username)) is not None:
+        if (avatar_url := (self.EXACT_AVATAR_MAPPING | self.EXTRA_EXACT_AVATAR_MAPPING).get(username)) is not None:
             return avatar_url
         # inclusions
         for search_name, candidate in self.INCLUSIVE_AVATAR_MAPPING.items():
