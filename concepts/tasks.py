@@ -10,6 +10,7 @@ Notices
 * Copyright (C) 2020-present @Aluerie.
 """
 
+import types
 from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar, overload, override
 
@@ -22,6 +23,8 @@ from shared import errors, fmt
 if TYPE_CHECKING:
     import datetime as dt
     from collections.abc import Sequence
+
+    from discord.ext.tasks import Loop as DiscordLoop
 
     from .error_notifications import ErrorNotificationManager
 
@@ -37,7 +40,11 @@ if TYPE_CHECKING:
         bot: BotWithTasksProtocol
 
 
-__all__ = ("loop",)
+__all__ = (
+    "Loop",
+    "loop",
+    "restart_task",
+)
 
 
 _func = Callable[..., Coroutine[Any, Any, Any]]
@@ -50,6 +57,7 @@ class Loop(tasks.Loop[LF]):
     This extension class adds the following:
     * Error Manager Notifications;
     * `wait_for_ready` kwarg;
+    * No silenced exception types: network errors reach _error instead of being retried;
 
     Warning
     -------
@@ -82,9 +90,32 @@ class Loop(tasks.Loop[LF]):
         if wait_for_ready:
             self._before_loop = self._wait_for_ready
 
-        # Not sure how I feel about it, but it's annoying that it silences `aiohttp.ClientError, asyncio.TimeoutError`
-        # because valid aiohttp requests raise them as well !
+        # it's annoying that discord silences `aiohttp.ClientError` and `asyncio.TimeoutError` by default,
+        # because valid aiohttp requests raise them as well and they should reach `_error`.
+        # A task can opt back in with `add_exception_type` right after its definition.
         self.clear_exception_types()
+
+    @override
+    def __get__(self, obj: Any, objtype: Any) -> DiscordLoop[LF]:
+        """Apply per-instance settings that discord's descriptor drops when it copies the task.
+
+        `discord.ext.tasks.Loop.__get__` builds a plain `discord.ext.tasks.Loop` for every instance and carries over
+        only the loop hooks, which stay bound to this template task. So whatever the task should have, and every hook
+        that reads the task's own state, has to be applied to the copy here. The copy is stored on the instance, so
+        this runs once per instance and task.
+
+        Parameters
+        ----------
+        obj
+            The instance the task is accessed on, or ``None`` when it is accessed on the class.
+        objtype
+            The class the task is accessed on.
+        """
+        loop_copy = super().__get__(obj, objtype)
+        if obj is not None:
+            loop_copy._valid_exception = self._valid_exception  # ruff: ignore[private-member-access]
+            loop_copy._error = types.MethodType(type(self)._error, loop_copy)  # ty: ignore[invalid-assignment]  # ruff: ignore[private-member-access]
+        return loop_copy
 
     async def _wait_for_ready(self, cog: CogWithTasksProtocol) -> None:
         """Wait for ready.
@@ -177,3 +208,21 @@ def loop(
         )
 
     return decorator
+
+
+def restart_task(task: DiscordLoop[Any], *args: Any) -> None:
+    """Start a task, or restart it from the beginning if it is already running.
+
+    Calling `restart` on a task that is not running does nothing, hence the check.
+
+    Parameters
+    ----------
+    task
+        The task to start or restart.
+    args
+        Arguments to pass to the task.
+    """
+    if task.is_running():
+        task.restart(*args)
+    else:
+        task.start(*args)
