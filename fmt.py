@@ -28,8 +28,11 @@ __all__ = (
     "plural",
 )
 
+EMBED_FIELD_VALUE_LIMIT = 1024
+EMBED_SUM_ALL_LIMIT = 6000
+EMBED_TITLE_LIMIT = 256
+
 _MAX_KWARG_NAME_WIDTH = 20
-_EMBED_FIELD_VALUE_LIMIT = 1024
 
 # fmt: off
 # cSpell:disable
@@ -107,12 +110,12 @@ def pformat_args(*args: Any, limit: int | None = None) -> str:
 
 def add_mapping_field(embed: discord.Embed, name: str, mapping: Mapping[str, Any]) -> discord.Embed:
     """Add a field with a pretty-formatted mapping that is guaranteed to fit Discord's field value limit."""
-    return embed.add_field(name=name, value=pformat_mapping(mapping, limit=_EMBED_FIELD_VALUE_LIMIT), inline=False)
+    return embed.add_field(name=name, value=pformat_mapping(mapping, limit=EMBED_FIELD_VALUE_LIMIT), inline=False)
 
 
 def add_args_field(embed: discord.Embed, name: str, *args: Any) -> discord.Embed:
     """Add a field with pretty-formatted args that is guaranteed to fit Discord's field value limit."""
-    return embed.add_field(name=name, value=pformat_args(*args, limit=_EMBED_FIELD_VALUE_LIMIT), inline=False)
+    return embed.add_field(name=name, value=pformat_args(*args, limit=EMBED_FIELD_VALUE_LIMIT), inline=False)
 
 
 def ordinal(n: int | str) -> str:
