@@ -107,7 +107,8 @@ class BotBase:
 
         Returns
         -------
-        Extensions in full dotted form, e.g. `('ext.alerts', 'ext.control', 'ext.dev')`.
+        tuple[str, ...]
+            Extensions in full dotted form, e.g. `('ext.alerts', 'ext.control', 'ext.dev')`.
         """
         if is_subset_mode:
             return tuple(f"{package.__name__}.{extension}" for extension in SUBSET)

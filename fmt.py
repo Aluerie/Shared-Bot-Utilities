@@ -218,8 +218,9 @@ def shorten(text: str, limit: int) -> str:
 
     Returns
     -------
-    The original text if it fits within `limit`, otherwise the truncated text ending in "…". Returns an empty string
-    if `limit` is not positive.
+        str
+        The original text if it fits within `limit`, otherwise the truncated text ending in "…". Returns an empty string
+        if `limit` is not positive.
     """
     if len(text) <= limit:
         return text

@@ -52,7 +52,8 @@ class LoggingHandler(logging.Handler):
 
         Returns
         -------
-        `True` to mirror the record, `False` to discard it.
+        bool
+            `True` to mirror the record, `False` to discard it.
         """
         messages_to_ignore = (
             self.cog.rate_limit_message,
@@ -157,7 +158,8 @@ class DiscordWebhookLogs:
 
         Returns
         -------
-        The avatar URL, or `MISSING` to use the webhook's default avatar.
+        str
+            The avatar URL, or `MISSING` to use the webhook's default avatar.
         """
         # exact name
         if (avatar_url := (self.EXACT_AVATAR_MAPPING | self.EXTRA_EXACT_AVATAR_MAPPING).get(username)) is not None:
