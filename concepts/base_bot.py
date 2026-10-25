@@ -9,6 +9,7 @@ Notices
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from pkgutil import iter_modules
 from typing import TYPE_CHECKING, Any
 
@@ -111,12 +112,26 @@ class BotBase:
             Extensions in full dotted form, e.g. `('ext.alerts', 'ext.control', 'ext.dev')`.
         """
         if is_subset_mode:
-            return tuple(f"{package.__name__}.{extension}" for extension in SUBSET)
+            return (
+                *(
+                    f"{package.__name__}.{category}.{extension}"
+                    for category, extensions in SUBSET.items()
+                    for extension in extensions
+                ),
+                f"{package.__name__}.beta",
+            )
 
+        categories = sorted(
+            path
+            for root in map(Path, package.__path__)
+            for path in root.iterdir()
+            if path.is_dir() and not path.name.startswith("_")
+        )
         return tuple(
-            module_info.name
-            for module_info in iter_modules(package.__path__, prefix=f"{package.__name__}.")
-            if not module_info.name.rpartition(".")[2].startswith("_")
+            f"{package.__name__}.{category.name}.{module_info.name}"
+            for category in categories
+            for module_info in iter_modules([str(category)])
+            if not module_info.name.startswith("_")
         )
 
     async def respond_per_policy(
