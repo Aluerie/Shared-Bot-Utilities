@@ -30,7 +30,7 @@ from shared import errors
 if TYPE_CHECKING:
     import aiohttp
 
-    from shared.types_ import local_api as schemas
+    from shared.typings import local_api as schemas
 
 
 class MatchState(IntEnum):

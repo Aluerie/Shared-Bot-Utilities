@@ -21,7 +21,7 @@ from steam.ext.dota2 import GameMode, Hero, LobbyType
 from shared import errors, globs
 
 if TYPE_CHECKING:
-    from shared.types_ import steam_web as schemas
+    from shared.typings import steam_web as schemas
 
 
 __all__ = (

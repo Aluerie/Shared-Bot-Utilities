@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     import aiohttp
     from aiohttp.client import ClientSession
 
-    from shared.types_ import stratz as schemas
+    from shared.typings import stratz as schemas
 
     class GraphQLData(TypedDict):
         data: Any

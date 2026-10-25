@@ -29,7 +29,7 @@ from shared import errors
 if TYPE_CHECKING:
     from aiohttp import ClientSession
 
-    from shared.types_ import dota2com as schemas
+    from shared.typings import dota2com as schemas
 
 
 __all__ = ("Dota2comClient",)

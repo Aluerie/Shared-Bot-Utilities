@@ -23,7 +23,7 @@ import orjson
 if TYPE_CHECKING:
     import aiohttp
 
-    from shared.types_ import opendota as schemas
+    from shared.typings import opendota as schemas
 
 
 __all__ = ("OpenDotaClient",)

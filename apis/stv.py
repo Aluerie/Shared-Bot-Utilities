@@ -34,7 +34,7 @@ from shared import errors
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from shared.types_ import seven_tv as stv_types
+    from shared.typings import seven_tv as stv_types
 
     class EmotePayload(TypedDict):
         """EmotePayload."""
@@ -55,7 +55,7 @@ if TYPE_CHECKING:
         emoteSetId: str
         emoteIdWithAlias: EmoteIdWithAlias
 
-    from shared.types_.seven_tv import GetUserEditors, GUEEditors
+    from shared.typings.seven_tv import GetUserEditors, GUEEditors
 
 
 __all__ = (

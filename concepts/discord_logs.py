@@ -12,7 +12,7 @@ import asyncio
 import datetime as dt
 import logging
 import traceback
-from typing import TYPE_CHECKING, ClassVar, override, Final
+from typing import TYPE_CHECKING, ClassVar, Final, override
 
 import discord
 from discord.utils import MISSING
