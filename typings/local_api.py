@@ -36,8 +36,8 @@ class Friend(TypedDict):
     is_playing_dota: bool
     status: str
     rich_presence: str
+    party: list[int]
     raw_rich_presence: dict[str, str]
-    activity: str
     live_match: StreamerLiveMatch | None
 
 
