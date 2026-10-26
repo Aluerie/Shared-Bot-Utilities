@@ -47,10 +47,12 @@ class BotBase:
         self,
         session: aiohttp.ClientSession,
         *,
+        test: bool,
         dev_ping: str,
         error_webhook_url: str,
         spam_webhook_url: str,
     ) -> None:
+        self.test = test
         self.session: aiohttp.ClientSession = session
         self.dev_ping: str = dev_ping
         self._spam_webhook_url: str = spam_webhook_url
@@ -72,6 +74,11 @@ class BotBase:
         * etc
         """
         return self.webhook_from_url(self._spam_webhook_url)
+
+    def webhook_from_url_or_test(self, url: str) -> discord.Webhook:
+        """webhook_from_url_or_test."""
+        url = url if not self.test else self._spam_webhook_url
+        return self.webhook_from_url(url)
 
     async def notify_developers(self, content: str = "", **send_kwargs: Any) -> None:
         """Notify developers.
