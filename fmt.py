@@ -6,7 +6,6 @@ Notices
 * Copyright (C) 2020-present @Aluerie.
 """
 
-import pprint
 from typing import TYPE_CHECKING, Any, override
 
 if TYPE_CHECKING:
@@ -78,13 +77,6 @@ def codeblock(text: str, language: str = "py") -> str:
     return f"```{language}\n{_escape_backticks(text)}\n```"
 
 
-def _safe_pformat(value: Any) -> str:
-    try:
-        return pprint.pformat(value, indent=4, width=60)
-    except Exception:  # ruff: ignore[blind-except]
-        return f"<unprintable {type(value).__name__}>"
-
-
 def pformat_mapping(mapping: Mapping[str, Any], *, limit: int | None = None) -> str:
     """Pretty-format a mapping into a Discord codeblock, optionally capped at `limit` characters in total.
 
@@ -94,8 +86,7 @@ def pformat_mapping(mapping: Mapping[str, Any], *, limit: int | None = None) -> 
         return codeblock("No arguments")
 
     name_width = min(max(map(len, mapping)), _MAX_KWARG_NAME_WIDTH)
-    indent = "\n" + " " * (name_width + 3)  # name + " = "
-    lines = (f"{name:<{name_width}} = {_safe_pformat(value).replace('\n', indent)}" for name, value in mapping.items())
+    lines = (f"{name:<{name_width}} = {value!r}" for name, value in mapping.items())
     text = _escape_backticks("\n".join(lines))
     if limit is not None:
         room = limit - len(codeblock(""))
