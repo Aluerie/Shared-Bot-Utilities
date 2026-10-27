@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import datetime as dt
 from enum import Enum, IntEnum
-from typing import TYPE_CHECKING, Any, Final, TypedDict, override
+from typing import TYPE_CHECKING, Any, Final, override
 from urllib.parse import quote
 
 import aiohttp
@@ -30,7 +30,21 @@ from steam.ext.dota2 import GameMode, Hero, LobbyType
 from shared import errors
 
 if TYPE_CHECKING:
-    from shared.typings import local_api as schemas
+    from shared.typings import local as schemas
+
+# Colors of the player slots in a Dota 2 match, in the order of the slots.
+PLAYER_COLORS: Final = (
+    "Blue",
+    "Teal",
+    "Purple",
+    "Yellow",
+    "Orange",
+    "Pink",
+    "Olive",
+    "LightBlue",
+    "DarkGreen",
+    "Brown",
+)
 
 
 class MatchState(IntEnum):
@@ -71,7 +85,7 @@ class Category(Enum):
 
 
 class Friend:
-    """Friend."""
+    """A streamer from the Dota2Bot's friend list and what they are doing at the moment."""
 
     def __init__(self, data: schemas.Friend) -> None:
         self.id: int = data["id"]
@@ -85,7 +99,10 @@ class Friend:
 
 
 class FriendLiveMatch:
-    """FriendLiveMatch."""
+    """A match the streamer is currently playing or spectating.
+
+    Most of the data is `None` or empty until the Dota2Bot manages to gather it.
+    """
 
     def __init__(self, data: schemas.StreamerLiveMatch) -> None:
         self.id: int | None = data.get("id")
@@ -96,13 +113,13 @@ class FriendLiveMatch:
         self.tag: str = data["tag"]
         self.message: str = data["message"]
         self.server_steam_id: int | None = data["server_steam_id"]
-        self.players = [FriendLiveMatchPlayer(p) for p in data["players"]]
+        self.players: list[FriendLiveMatchPlayer] = [FriendLiveMatchPlayer(p) for p in data["players"]]
         self.average_mmr: int | None = data["average_mmr"]
         self.state: MatchState = MatchState(data["state"])
 
 
 class FriendLiveMatchPlayer:
-    """FriendLiveMatchPlayer."""
+    """A player of a live match."""
 
     def __init__(self, data: schemas.StreamerLiveMatchPlayer) -> None:
         self.id: int = data["id"]
@@ -113,40 +130,17 @@ class FriendLiveMatchPlayer:
 
     @property
     def color(self) -> str:
-        """Color."""
-        colors = [
-            "Blue",
-            "Teal",
-            "Purple",
-            "Yellow",
-            "Orange",
-            "Pink",
-            "Olive",
-            "LightBlue",
-            "DarkGreen",
-            "Brown",
-        ]
-        try:
-            return colors[self.player_slot]
-        except IndexError:
-            return "Colorless"
+        """Color of the player's slot."""
+        return PLAYER_COLORS[self.player_slot] if 0 <= self.player_slot < len(PLAYER_COLORS) else "Colorless"
 
     @property
     def identifier(self) -> str:
-        """Identifier."""
+        """How to call the player in chat: by their hero, or by their color if the hero is not picked yet."""
         return self.hero.name if self.hero else self.color
 
 
-class MatchBaseKwargs(TypedDict):
-    """MatchBaseKwargs."""
-
-    id: int
-    game_mode: int
-    lobby_type: int
-
-
 class MatchBase:
-    """MatchBase."""
+    """Data common for all kinds of finished matches."""
 
     def __init__(self, *, match_id: int, game_mode: int, lobby_type: int, start_time: str, duration: int) -> None:
         self.id: int = match_id
@@ -156,23 +150,28 @@ class MatchBase:
         self.duration: dt.timedelta = dt.timedelta(seconds=duration)
 
     @property
+    def end_dt(self) -> dt.datetime:
+        """When the match has ended."""
+        return self.start_dt + self.duration
+
+    @property
     def category(self) -> Category:
-        """Category."""
+        """Category of the match for the !wl command."""
         return Category.create(self.lobby_type, self.game_mode)
 
 
 class MinimalMatch(MatchBase):
-    """Minimal."""
+    """Minimal information about a match: scores and players' KDA."""
 
     def __init__(self, data: schemas.MinimalMatch) -> None:
         super().__init__(
-            match_id=data.get("id"),
-            game_mode=data.get("game_mode"),
-            lobby_type=data.get("lobby_type"),
+            match_id=data["id"],
+            game_mode=data["game_mode"],
+            lobby_type=data["lobby_type"],
             start_time=data["start_time"],
             duration=data["duration"],
         )
-        self.players = [MinimalMatchPlayer(p) for p in data["players"]]
+        self.players: list[MinimalMatchPlayer] = [MinimalMatchPlayer(p) for p in data["players"]]
         self.radiant_score: int = data["radiant_score"]
         self.dire_score: int = data["dire_score"]
 
@@ -182,10 +181,10 @@ class MinimalMatch(MatchBase):
 
 
 class MinimalMatchPlayer:
-    """MinimalMatchPlayer."""
+    """A player of a minimal match."""
 
     def __init__(self, data: schemas.MinimalMatchPlayer) -> None:
-        self.id = data["id"]
+        self.id: int = data["id"]
         self.hero: Hero = Hero.try_value(data["hero_id"])
         self.kills: int = data["kills"]
         self.deaths: int = data["deaths"]
@@ -197,13 +196,13 @@ class MinimalMatchPlayer:
 
 
 class PreviousMatch(MatchBase):
-    """PreviousMatch."""
+    """A match from the account's match history."""
 
     def __init__(self, data: schemas.PreviousMatch) -> None:
         super().__init__(
-            match_id=data.get("id"),
-            game_mode=data.get("game_mode"),
-            lobby_type=data.get("lobby_type"),
+            match_id=data["id"],
+            game_mode=data["game_mode"],
+            lobby_type=data["lobby_type"],
             start_time=data["start_time"],
             duration=data["duration"],
         )
@@ -211,18 +210,13 @@ class PreviousMatch(MatchBase):
         self.win: bool = data["win"]
         self.abandon: bool = data["abandon"]
 
-    @property
-    def end_dt(self) -> dt.datetime:
-        """end_dt."""
-        return self.start_dt + self.duration
-
     @override
     def __repr__(self) -> str:
         return f"<PreviousMatch id={self.id} hero={self.hero!r} win={self.win}>"
 
 
 class ProfileCard:
-    """ProfileCard."""
+    """Dota 2 profile card of an account."""
 
     def __init__(self, data: schemas.ProfileCard) -> None:
         self.rank_display_name: str = data["rank_display_name"]
@@ -233,7 +227,7 @@ class ProfileCard:
 
 
 class SteamUser:
-    """SteamUser."""
+    """A Steam user."""
 
     def __init__(self, data: schemas.SteamUser) -> None:
         self.id: int = data["id"]
@@ -245,15 +239,14 @@ class SteamUser:
 
 
 class LocalAPI:
-    """Local API provided by my Dota2Bot."""
+    """Client for the local API provided by my Dota2Bot."""
 
     BASE_URL: Final = "http://127.0.0.1:8000"
 
     def __init__(self, session: aiohttp.ClientSession) -> None:
-        self.session = session
+        self.session: aiohttp.ClientSession = session
 
     async def _invoke(self, endpoint: str, **params: str | int) -> Any:
-        down = "It seems Dota2Bot is down, please ask Irene to fix it"
         try:
             async with self.session.get(
                 f"{self.BASE_URL}{endpoint}",
@@ -261,45 +254,66 @@ class LocalAPI:
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 data = await resp.json()
-                if resp.ok:
-                    return data
+                ok = resp.ok
         except aiohttp.ClientError, TimeoutError, ValueError:
-            raise errors.RespondWithError(down) from None
+            msg = "It seems Dota2Bot is down, please ask Irene to fix it"
+            raise errors.RespondWithError(msg) from None
+
+        if ok:
+            return data
 
         detail = data.get("detail") if isinstance(data, dict) else None
-        raise errors.RespondWithError(detail if isinstance(detail, str) else down)
+        if isinstance(detail, str):
+            raise errors.RespondWithError(detail)
+        # FastAPI sends a list as `detail` when it rejects the request itself (HTTP 422)
+        msg = "Dota2Bot didn't understand the request, please ask Irene to fix it"
+        raise errors.RespondWithError(msg)
 
     async def get_friend(self, friend_id: int) -> Friend:
-        """Get friend."""
-        data: schemas.Friend = await self._invoke(endpoint=f"/friend/{friend_id}")
+        """Get a streamer from the Dota2Bot's friend list.
+
+        Parameters
+        ----------
+        friend_id
+            Steam friend id (account id) of the streamer.
+        """
+        data: schemas.Friend = await self._invoke(f"/friend/{friend_id}")
         return Friend(data)
 
     async def get_minimal_match(self, match_id: int) -> MinimalMatch:
-        """Get minimal match."""
-        data: schemas.MinimalMatch = await self._invoke(endpoint=f"/minimal/{match_id}")
+        """Get minimal information about a finished match."""
+        data: schemas.MinimalMatch = await self._invoke(f"/minimal/{match_id}")
         return MinimalMatch(data)
 
     async def get_profile_card(self, friend_id: int) -> ProfileCard:
-        """Get profile card."""
-        data: schemas.ProfileCard = await self._invoke(endpoint=f"/profile_card/{friend_id}")
+        """Get Dota 2 profile card of an account."""
+        data: schemas.ProfileCard = await self._invoke(f"/profile_card/{friend_id}")
         return ProfileCard(data)
 
     async def get_previous_match(self, friend_id: int, index: int = 0) -> PreviousMatch:
-        """Get previous match."""
+        """Get a match from the account's match history.
+
+        Parameters
+        ----------
+        friend_id
+            Steam friend id (account id).
+        index
+            How far to look back: 0 is the latest match, 1 is the one before it, and so on.
+        """
         data: schemas.PreviousMatch = await self._invoke(f"/previous_match/{friend_id}", index=index)
         return PreviousMatch(data)
 
     async def get_steam_user(self, friend_id: int) -> SteamUser:
-        """Get steam user."""
-        data: schemas.SteamUser = await self._invoke(endpoint=f"/steam_user/{friend_id}")
+        """Get a Steam user by their friend id (account id)."""
+        data: schemas.SteamUser = await self._invoke(f"/steam_user/{friend_id}")
         return SteamUser(data)
 
     async def get_steam_user_convert(self, argument: str) -> SteamUser:
-        """Get steam id. Converts ID from ID/URL to friend ID."""
-        data: schemas.SteamUser = await self._invoke(endpoint=f"/steam_user_convert/{quote(argument, safe='')}")
+        """Get a Steam user by any kind of Steam ID or by a profile url."""
+        data: schemas.SteamUser = await self._invoke(f"/steam_user_convert/{quote(argument, safe='')}")
         return SteamUser(data)
 
     async def get_accept_invite(self, friend_id: int, twitch_id: str) -> SteamUser:
-        """Get steam id and add it pending invites. Converts ID from ID/URL to friend ID."""
+        """Allow the Dota2Bot to accept a friend invite from the Steam user for the next few minutes."""
         data: schemas.SteamUser = await self._invoke("/accept_invite/", friend_id=friend_id, twitch_id=twitch_id)
         return SteamUser(data)
