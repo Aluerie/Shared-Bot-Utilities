@@ -21,15 +21,15 @@ from __future__ import annotations
 
 import datetime as dt
 from enum import Enum, IntEnum
-from typing import TYPE_CHECKING, Any, TypedDict, Unpack, override
+from typing import TYPE_CHECKING, Any, Final, TypedDict, override
+from urllib.parse import quote
 
+import aiohttp
 from steam.ext.dota2 import GameMode, Hero, LobbyType
 
 from shared import errors
 
 if TYPE_CHECKING:
-    import aiohttp
-
     from shared.typings import local_api as schemas
 
 
@@ -98,7 +98,7 @@ class FriendLiveMatch:
         self.server_steam_id: int | None = data["server_steam_id"]
         self.players = [FriendLiveMatchPlayer(p) for p in data["players"]]
         self.average_mmr: int | None = data["average_mmr"]
-        self.state: MatchState = data["state"]
+        self.state: MatchState = MatchState(data["state"])
 
 
 class FriendLiveMatchPlayer:
@@ -148,10 +148,12 @@ class MatchBaseKwargs(TypedDict):
 class MatchBase:
     """MatchBase."""
 
-    def __init__(self, **kwargs: Unpack[MatchBaseKwargs]) -> None:
-        self.id = kwargs.get("id")
-        self.game_mode: GameMode = GameMode.try_value(kwargs.get("game_mode"))
-        self.lobby_type: LobbyType = LobbyType.try_value(kwargs.get("lobby_type"))
+    def __init__(self, *, match_id: int, game_mode: int, lobby_type: int, start_time: str, duration: int) -> None:
+        self.id: int = match_id
+        self.game_mode: GameMode = GameMode.try_value(game_mode)
+        self.lobby_type: LobbyType = LobbyType.try_value(lobby_type)
+        self.start_dt: dt.datetime = dt.datetime.fromisoformat(start_time)
+        self.duration: dt.timedelta = dt.timedelta(seconds=duration)
 
     @property
     def category(self) -> Category:
@@ -163,12 +165,16 @@ class MinimalMatch(MatchBase):
     """Minimal."""
 
     def __init__(self, data: schemas.MinimalMatch) -> None:
-        super().__init__(**data)
+        super().__init__(
+            match_id=data.get("id"),
+            game_mode=data.get("game_mode"),
+            lobby_type=data.get("lobby_type"),
+            start_time=data["start_time"],
+            duration=data["duration"],
+        )
         self.players = [MinimalMatchPlayer(p) for p in data["players"]]
         self.radiant_score: int = data["radiant_score"]
         self.dire_score: int = data["dire_score"]
-        self.start_dt: dt.datetime = dt.datetime.fromisoformat(data["start_time"])
-        self.duration: dt.timedelta = dt.timedelta(seconds=data["duration"])
 
     @override
     def __repr__(self) -> str:
@@ -194,12 +200,16 @@ class PreviousMatch(MatchBase):
     """PreviousMatch."""
 
     def __init__(self, data: schemas.PreviousMatch) -> None:
-        super().__init__(**data)
+        super().__init__(
+            match_id=data.get("id"),
+            game_mode=data.get("game_mode"),
+            lobby_type=data.get("lobby_type"),
+            start_time=data["start_time"],
+            duration=data["duration"],
+        )
         self.hero: Hero = Hero.try_value(data["hero_id"])
         self.win: bool = data["win"]
         self.abandon: bool = data["abandon"]
-        self.start_dt: dt.datetime = dt.datetime.fromisoformat(data["start_time"])
-        self.duration: dt.timedelta = dt.timedelta(seconds=data["duration"])
 
     @property
     def end_dt(self) -> dt.datetime:
@@ -237,22 +247,27 @@ class SteamUser:
 class LocalAPI:
     """Local API provided by my Dota2Bot."""
 
-    BASE_URL = "http://127.0.0.1:8000"
+    BASE_URL: Final = "http://127.0.0.1:8000"
 
     def __init__(self, session: aiohttp.ClientSession) -> None:
         self.session = session
 
-    async def _invoke(self, endpoint: str) -> Any:
-        async with self.session.get(url=f"{self.BASE_URL}{endpoint}") as resp:
-            data = await resp.json()
-            if resp.ok:
-                return data
+    async def _invoke(self, endpoint: str, **params: str | int) -> Any:
+        down = "It seems Dota2Bot is down, please ask Irene to fix it"
+        try:
+            async with self.session.get(
+                f"{self.BASE_URL}{endpoint}",
+                params=params or None,
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as resp:
+                data = await resp.json()
+                if resp.ok:
+                    return data
+        except aiohttp.ClientError, TimeoutError, ValueError:
+            raise errors.RespondWithError(down) from None
 
-            detail = data.get("detail")
-            if detail is not None:
-                raise errors.RespondWithError(detail)
-            msg = "It seems Dota2Bot is down, please ask Irene to fix it"
-            raise errors.RespondWithError(msg)
+        detail = data.get("detail") if isinstance(data, dict) else None
+        raise errors.RespondWithError(detail if isinstance(detail, str) else down)
 
     async def get_friend(self, friend_id: int) -> Friend:
         """Get friend."""
@@ -266,12 +281,12 @@ class LocalAPI:
 
     async def get_profile_card(self, friend_id: int) -> ProfileCard:
         """Get profile card."""
-        data = await self._invoke(endpoint=f"/profile_card/{friend_id}")
+        data: schemas.ProfileCard = await self._invoke(endpoint=f"/profile_card/{friend_id}")
         return ProfileCard(data)
 
-    async def get_previous_match(self, friend_id: int) -> PreviousMatch:
+    async def get_previous_match(self, friend_id: int, index: int = 0) -> PreviousMatch:
         """Get previous match."""
-        data: schemas.PreviousMatch = await self._invoke(endpoint=f"/previous_match/{friend_id}")
+        data: schemas.PreviousMatch = await self._invoke(f"/previous_match/{friend_id}", index=index)
         return PreviousMatch(data)
 
     async def get_steam_user(self, friend_id: int) -> SteamUser:
@@ -281,12 +296,10 @@ class LocalAPI:
 
     async def get_steam_user_convert(self, argument: str) -> SteamUser:
         """Get steam id. Converts ID from ID/URL to friend ID."""
-        data: schemas.SteamUser = await self._invoke(endpoint=f"/steam_user_convert/{argument}")
+        data: schemas.SteamUser = await self._invoke(endpoint=f"/steam_user_convert/{quote(argument, safe='')}")
         return SteamUser(data)
 
     async def get_accept_invite(self, friend_id: int, twitch_id: str) -> SteamUser:
         """Get steam id and add it pending invites. Converts ID from ID/URL to friend ID."""
-        data: schemas.SteamUser = await self._invoke(
-            endpoint=f"/accept_invite/?friend_id={friend_id}&twitch_id={twitch_id}"
-        )
+        data: schemas.SteamUser = await self._invoke("/accept_invite/", friend_id=friend_id, twitch_id=twitch_id)
         return SteamUser(data)
