@@ -80,7 +80,7 @@ class Friend:
         self.status: str = data["status"]
         self.rich_presence: str = data["rich_presence"]
         self.raw_rich_presence: dict[str, str] = data["raw_rich_presence"]
-        self.activity: str = data["activity"]
+        self.party: list[int] = data["party"]
         self.live_match: FriendLiveMatch | None = FriendLiveMatch(data["live_match"]) if data["live_match"] else None
 
 
