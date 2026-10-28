@@ -25,6 +25,7 @@ __all__ = (
     "pformat_args",
     "pformat_mapping",
     "plural",
+    "shorten",
 )
 
 EMBED_FIELD_VALUE_LIMIT = 1024
@@ -213,7 +214,7 @@ def shorten(text: str, limit: int) -> str:
 
     Returns
     -------
-        str
+    str
         The original text if it fits within `limit`, otherwise the truncated text ending in "…". Returns an empty string
         if `limit` is not positive.
     """

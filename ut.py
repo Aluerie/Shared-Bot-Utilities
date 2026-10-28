@@ -51,10 +51,6 @@ def ni[T](iterable: Iterable[T]) -> T | None:
     return next(iter(iterable), None)
 
 
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-
-
 class _MissingSentinel:
     __slots__ = ()
 

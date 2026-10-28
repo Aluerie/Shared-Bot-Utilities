@@ -1,15 +1,11 @@
 """CUSTOM ERRORS.
 
-All exceptions raised by me should be defined in this file.
-It's just my small code practice.
-It might be a little bit overthinking, but it gets the job done the way I want.
+All exceptions raised by me should be defined in this file (or subclassed from those).
 
-Notes
------
 Notices
 -------
 * MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present @Aluerie.
+* Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
 """
 
 from dataclasses import dataclass
@@ -38,11 +34,11 @@ RESPOND_NOTIFY = Policy(respond=True, notify=True)
 
 
 class CustomError(Exception):
-    """The base exception for my (@Aluerie) projects. All other exceptions should inherit from this."""
+    """The base exception for my projects. All other exceptions should inherit from this."""
 
 
 class BotError(CustomError):
-    """The base exception for my (@Aluerie) Bot projects. All other exceptions should inherit from this.
+    """The base exception for my Bot projects. All other exceptions should inherit from this.
 
     This class introduces various attributes to control whether error handlers should respond to the end-user
     or/and send a notification message to the bot's developers.
@@ -141,67 +137,3 @@ class ResponseNotOkError(SomethingWentWrongError):
 
 class TooManyFailsError(SomethingWentWrongError):
     """TooManyFailsError."""
-
-
-########################################
-# ERRORS CONTROLLING RESPONSE BEHAVIOR #
-########################################
-
-
-# class SilentError(CustomError):
-#     """Errors to be ignored by error handlers."""
-
-
-# class RespondWithError(CustomError):
-#     """Error class for which Error Handler should just send the message back into the context.
-
-#     Not an error per se (at least not always), but useful when we have a known exceptional situation
-#     that requires an early exit but still with a command response.
-#     """
-
-
-# class RespondAndNotifyDevsError(CustomError):
-#     """."""
-
-#     def __init__(self, msg: str, for_devs: str | None = None, **kwargs: Any) -> None:
-#         self.for_devs: str = for_devs or msg
-#         self.debug_data: dict[str, Any] = kwargs
-#         super().__init__(msg)
-
-
-# class SomethingWentWrongError(CustomError):
-#     """Placeholder Error for "Something went wrong" moments.
-
-#     An error type I mostly use for the debugging purposes in places I'm not sure what to do about.
-#     Can attach some debug data into `.data` attribute for more debugging information.
-#     """
-
-#     def __init__(self, msg: str, **kwargs: Any) -> None:
-#         self.debug_data: dict[str, Any] = kwargs
-#         super().__init__(msg)
-
-
-# ########################################
-# # Other #
-# ########################################
-
-
-# class UnsatisfyingResultError(CustomError):
-#     """Error indicating that the result of operation was unsatisfying.
-
-#     Useful for API calls where the response was correct, but, for example,
-#     some conditions were not met.
-#     """
-
-
-# class BadUserInputError(RespondWithError):
-#     """Error indicating there was a problem with user input."""
-
-
-# class ResponseNotOK(CustomError):
-#     """Raised when `aiohttp`'s session response is not OK.
-
-#     Sometimes we just specifically need to raise an error in those cases
-#     when response from `self.bot.session.get(url)` is not OK.
-#     I.e. Cache Updates.
-#     """

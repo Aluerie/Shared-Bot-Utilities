@@ -148,6 +148,20 @@ def cache[R](
 
             return ":".join(key)
 
+        def _evict_if_failed(key: str, task: asyncio.Task[R]) -> None:
+            """Drop a finished task from the cache if it failed, so an error is not cached forever.
+
+            Only successful results are worth remembering: a transient failure (e.g. a database hiccup)
+            would otherwise be returned for the given key until the bot restarts.
+            """
+            if not (task.cancelled() or task.exception() is not None):
+                return
+            try:
+                if internal_cache.get(key) is task:  # the key could have been invalidated and refilled meanwhile
+                    del internal_cache[key]
+            except KeyError:
+                pass
+
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> asyncio.Task[R]:
             key = _make_key(args, kwargs)
@@ -155,6 +169,7 @@ def cache[R](
                 task = internal_cache[key]
             except KeyError:
                 internal_cache[key] = task = asyncio.create_task(func(*args, **kwargs))
+                task.add_done_callback(lambda t: _evict_if_failed(key, t))
                 return task
             else:
                 return task
