@@ -73,6 +73,7 @@ class RealTimeStatsPlayer:
         self.denies: int = data["denies_count"]
         self.networth: int = data["net_worth"]
         self.items: list[int] = data.get("items", [])
+        self.gold: int = data["gold"]
 
 
 class RealTimeStats:
