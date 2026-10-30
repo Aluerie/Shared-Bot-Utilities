@@ -221,3 +221,31 @@ def shorten(text: str, limit: int) -> str:
     if len(text) <= limit:
         return text
     return text[: max(limit - 1, 0)] + "…" if limit > 0 else ""
+
+
+# TODO: I don't like it
+def label_indent(label: str | int, number: int, split_size: int = 10) -> str:
+    """Pad a table label to the width of the widest row number on its page.
+
+    Leaderboards are split into pages of `split_size` rows, so labels (row numbers and the "N" header)
+    only have to be as wide as the biggest number of their page: ``9`` and ``10`` live on different pages
+    but ``1`` and ``10`` don't, i.e. the first page is padded to 2 characters and the 11-20 page to 2 as well,
+    while a 91-100 page is padded to 3.
+
+    Parameters
+    ----------
+    label
+        The label to pad.
+    number
+        Any row number (0-based) that belongs to the page. Use ``counter - 1`` for the row with number `counter`
+        and ``offset + 1`` for the header of a page that starts after `offset` rows.
+    split_size
+        How many rows there are in one page.
+
+    Returns
+    -------
+    str
+        The label padded with spaces on the right.
+    """
+    last_number_on_page = (number // split_size + 1) * split_size
+    return str(label).ljust(len(str(last_number_on_page)))

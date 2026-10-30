@@ -17,13 +17,15 @@ import click
 import orjson
 
 
-async def create_pool(postgres_url: str) -> PoolTypedWithAny:
+async def create_pool(postgres_url: str, search_path: str) -> PoolTypedWithAny:
     """Create a database connection pool.
 
     Parameters
     ----------
     postgres_url: str
         Postgresql URL to use for connection.
+    search_path: str
+        Search path for `asyncpg.create_pool`'s server_settings.
     """
 
     async def init(con: asyncpg.Connection[asyncpg.Record]) -> None:
@@ -50,6 +52,7 @@ async def create_pool(postgres_url: str) -> PoolTypedWithAny:
             min_size=20,
             max_size=20,
             # statement_cache_size=0,
+            server_settings={"search_path": search_path},
         ),
     )
 
@@ -83,13 +86,14 @@ async def try_create_pool(
     postgres_prod: str,
     postgres_test: str,
     *,
+    search_path: str,
     is_test: bool,
 ) -> PoolTypedWithAny:
     """Create a database connection pool but with error handling."""
     log = logging.getLogger(__name__)
     postgres_url = postgres_test if is_test else postgres_prod
     try:
-        return await create_pool(postgres_url)
+        return await create_pool(postgres_url, search_path)
     except Exception:
         msg = "Could not set up PostgreSQL. Exiting."
         # error message to terminal
