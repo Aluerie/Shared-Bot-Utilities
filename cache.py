@@ -1,14 +1,11 @@
+# Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
+# Licensed under MPL-2.0, see the LICENSE file for details.
 """Cache.
 
 References
 ----------
 * RoboDanny (MPL v2 License)
     https://github.com/Rapptz/RoboDanny/
-
-Notices
--------
-* MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present @Aluerie.
 """
 
 import asyncio

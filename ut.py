@@ -1,13 +1,10 @@
+# Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
+# Licensed under MPL-2.0, see the LICENSE file for details.
 """Utilities.
 
 The name `ut.py` is a bit silly, but it's meant to be a very short of "utilities".
 
 This module contains some utilities that I could not categorize anywhere.
-
-Notices
--------
-* MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations

@@ -1,19 +1,16 @@
+# Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
+# Licensed under MPL-2.0, see the LICENSE file for details.
 """Fuzzy wuzzy string matching utilities.
 
 Sources
 -------
-Robodanny:
+* Robodanny:
     `fuzzy.py` file from RoboDanny (MPL v2 license)
     https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/utils/fuzzy.py
-Seatgeek:
+* Seatgeek:
     http://chairnerd.seatgeek.com/fuzzywuzzy-fuzzy-string-matching-in-python/
     https://github.com/seatgeek/thefuzz (MIT license)
     (but in my testing that library is slower than the code here, not really sure why).
-
-Notices
--------
-* MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations

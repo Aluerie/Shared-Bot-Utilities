@@ -1,13 +1,10 @@
+# Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
+# Licensed under MPL-2.0, see the LICENSE file for details.
 """Tasks.
 
 References
 ----------
 * `discord.ext.tasks` (MIT License)
-
-Notices
--------
-* MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present @Aluerie.
 """
 
 import types

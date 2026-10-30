@@ -1,3 +1,5 @@
+# Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
+# Licensed under MPL-2.0, see the LICENSE file for details.
 """Dota 2 Datafeed API Wrapper.
 
 This API is not public per se.
@@ -6,11 +8,6 @@ Just looked up some calls in Network tab.
 Links
 -----
 * https://www.dota2.com/
-
-License
--------
-* MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations

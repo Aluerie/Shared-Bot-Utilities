@@ -1,11 +1,8 @@
+# Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
+# Licensed under MPL-2.0, see the LICENSE file for details.
 """Discord Webhook Logger.
 
 Mirror records from the standard `logging` machinery into a Discord webhook channel.
-
-Notices
--------
-* MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present @Aluerie.
 """
 
 import asyncio

@@ -1,10 +1,6 @@
-"""Git, GitHub and some file/code counting Utilities.
-
-Notices
--------
-* MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present @Aluerie.
-"""
+# Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
+# Licensed under MPL-2.0, see the LICENSE file for details.
+"""Git, GitHub and some file/code counting Utilities."""
 
 from __future__ import annotations
 

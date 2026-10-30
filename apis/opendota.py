@@ -1,3 +1,5 @@
+# Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
+# Licensed under MPL-2.0, see the LICENSE file for details.
 """Opendota API Wrapper.
 
 Links
@@ -5,12 +7,6 @@ Links
 * https://docs.opendota.com/
 * https://www.opendota.com/
 * https://github.com/odota
-
-
-License
--------
-* MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations

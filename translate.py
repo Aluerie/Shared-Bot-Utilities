@@ -1,3 +1,5 @@
+# Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
+# Licensed under MPL-2.0, see the LICENSE file for details.
 """Google Translate function.
 
 Sources
@@ -8,11 +10,6 @@ Sources
     - https://github.com/ssut/py-googletrans/issues/268
 * `async-google-trans-new` source code (MIT License)
     - https://github.com/sevenc-nanashi/async-google-trans-new
-
-Notices
--------
-* MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations

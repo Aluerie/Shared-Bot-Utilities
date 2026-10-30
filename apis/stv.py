@@ -1,8 +1,9 @@
+# Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
+# Licensed under MPL-2.0, see the LICENSE file for details.
 """7TV API Wrapper.
 
 Some helper methods and classes wrapping:
 * GraphQL 7TV API
-
 
 Just in case, here are some Seven TV Ids so it's less painful to test GraphQL queries:
 {
@@ -12,11 +13,6 @@ Just in case, here are some Seven TV Ids so it's less painful to test GraphQL qu
     "userId": "01FAQVCS500002EV4FV330P46A" # IRENE
     "botId": "01KFF67D46PJPD1S6DPFFT06E3" # BOT
 }
-
-Notices
--------
-* MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations

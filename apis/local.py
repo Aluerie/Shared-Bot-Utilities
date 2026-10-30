@@ -1,3 +1,5 @@
+# Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
+# Licensed under MPL-2.0, see the LICENSE file for details.
 """Local API.
 
 In the past, I was running Dota 2 Client from steamIO in the same process as my twitch/discord bots.
@@ -10,11 +12,6 @@ it dies/struggles then my twitch/discord bots are unaffected.
 
 So currently, Dota2Bot hosts its API at localhost:8000.
 Mostly, Dota 2 and steam related functionality. Maybe more incoming in future.
-
-Notices
--------
-* MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present @Aluerie.
 """
 
 from __future__ import annotations
