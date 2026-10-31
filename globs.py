@@ -9,7 +9,7 @@ Maybe I will think of a better name in future.
 
 from __future__ import annotations
 
-from enum import UNIQUE, IntEnum, StrEnum, verify
+from enum import IntEnum, StrEnum
 from typing import Final
 
 __all__ = (
@@ -60,9 +60,11 @@ class Logo(StrEnum):
     Twitch = "https://cdn3.iconfinder.com/data/icons/social-messaging-ui-color-shapes-2-free/128/social-twitch-circle-512.png"
 
 
-@verify(UNIQUE)
 class Color(IntEnum):
-    """Named colors as ``0xRRGGBB`` integers."""
+    """Named colors as ``0xRRGGBB`` integers.
+
+    There are some duplicates, but it's okay.
+    """
 
     # --- BRANDS -------------------------------------------------------------------------------------------------------
     TWITCH = 0x9146FF
