@@ -11,6 +11,8 @@ __all__ = (
     "RealTimeStats",
 )
 
+# --- HERO LIST --------------------------------------------------------------------------------------------------------
+
 
 class HeroListHero(TypedDict):
     """https://www.dota2.com/datafeed/herolist?language=english."""
@@ -21,6 +23,29 @@ class HeroListHero(TypedDict):
     name_english_loc: str
     primary_attr: int
     complexity: int
+
+
+# --- ITEM LIST --------------------------------------------------------------------------------------------------------
+
+
+class ItemListItem(TypedDict):
+    id: int
+    name: str
+    name_loc: str
+    name_english_loc: str
+    neutral_item_tier: int
+    is_pregame_suggested: bool
+    is_earlygame_suggested: bool
+    is_lategame_suggested: bool
+    recipes: list[Recipes]
+    is_innate: bool
+
+
+class Recipes(TypedDict):
+    items: list[int]
+
+
+# --- REAL TIME STATS --------------------------------------------------------------------------------------------------
 
 
 class RealTimeStats(TypedDict):

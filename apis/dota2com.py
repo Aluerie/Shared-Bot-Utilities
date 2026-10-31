@@ -29,7 +29,12 @@ if TYPE_CHECKING:
     from shared.typings import dota2com as schemas
 
 
-__all__ = ("Dota2comClient",)
+__all__ = (
+    "Dota2comClient",
+    "HeroListHero",
+    "ItemListItem",
+    "RealTimeStats",
+)
 
 log = logging.getLogger(__name__)
 
@@ -39,6 +44,12 @@ class HeroListHero:
         self.id: int = data["id"]
         self.display_name: str = data["name_english_loc"]
         self.npc_name: str = data["name"]
+
+
+class ItemListItem:
+    def __init__(self, data: schemas.ItemListItem) -> None:
+        self.id: int = data["id"]
+        self.display_name: str = data["name_english_loc"]
 
 
 class RealTimeStats:
@@ -86,7 +97,8 @@ class Dota2comClient:
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
             },
         ) as resp:
-            return await resp.json(loads=orjson.loads)
+            data = await resp.json(loads=orjson.loads)
+            return data["result"]["data"]
 
     async def hero_list(self, language: str = "english") -> list[HeroListHero]:
         """Get hero list.
@@ -95,8 +107,9 @@ class Dota2comClient:
         ----------
         * https://www.dota2.com/datafeed/herolist?language=english
         """
-        data: list[schemas.HeroListHero] = await self._invoke("datafeed/herolist", language=language)
-        return [HeroListHero(d) for d in data]
+        data = await self._invoke("datafeed/herolist", language=language)
+        heroes: list[schemas.HeroListHero] = data["heroes"]
+        return [HeroListHero(d) for d in heroes]
 
     @deprecated("Use steam_web.py's get_real_time_stats instead")
     async def real_time_stats(self, server_steam_id: int | None) -> RealTimeStats:
@@ -125,6 +138,17 @@ class Dota2comClient:
             raise errors.RespondWithError(msg)
         return RealTimeStats(data)
 
+    async def item_list(self, language: str = "english") -> list[ItemListItem]:
+        """Get item list.
+
+        References
+        ----------
+        * https://www.dota2.com/datafeed/itemlist?language=english
+        """
+        data = await self._invoke("datafeed/itemlist", language=language)
+        item_abilities: list[schemas.ItemListItem] = data["itemabilities"]
+        return [ItemListItem(d) for d in item_abilities]
+
     # Other links that can be interesting (maybe implement in future):
     # * Patch Notes - https://www.dota2.com/datafeed/patchnotes?version=7.41f&language=english
     # * Patch Notes List - https://www.dota2.com/datafeed/patchnoteslist
@@ -132,6 +156,5 @@ class Dota2comClient:
     # * Ability List - https://www.dota2.com/datafeed/abilitylist?language=english
     # * Hero Data - https://www.dota2.com/datafeed/herodata?language=english&hero_id=1
     # * Item - https://www.dota2.com/datafeed/itemdata?language=english&item_id=600
-    # * Item List - https://www.dota2.com/datafeed/itemlist?language=english
     # * Leaderboards - https://www.dota2.com/webapi/ILeaderboard/GetDivisionLeaderboard//v0001?division=europe&leaderboard=0
     # * League Info List - https://www.dota2.com/webapi/IDOTA2League/GetLeagueInfoList/v001
