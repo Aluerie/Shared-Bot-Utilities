@@ -60,7 +60,7 @@ class MinimalMatchPlayer(TypedDict):
 
 
 class PreviousMatch(TypedDict):
-    """/match_history/{friend_id} Endpoint."""
+    """/previous_match/{friend_id} Endpoint."""
 
     id: int
     hero_id: int  # Hero
