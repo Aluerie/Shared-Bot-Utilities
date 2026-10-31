@@ -9,11 +9,10 @@ if TYPE_CHECKING:
 
 
 class SendKwargs(TypedDict):
-    """SendKwargs.
-
-    These are used in ``.send`` and ``send``-like methods, e.g. ``interaction.response.send_message``.
+    """Keyword arguments for ``.send`` and ``send``-like methods.
 
     These should be applicable to all ways to send a message:
+
     * Context (ctx);
     * Channel (and any other Messageable);
     * Interaction;
@@ -23,8 +22,12 @@ class SendKwargs(TypedDict):
 
     content: NotRequired[str]
     embed: NotRequired[discord.Embed]
-    embeds: NotRequired[list[discord.Embed]]
     file: NotRequired[discord.File]
     allowed_mentions: NotRequired[discord.AllowedMentions]
     view: NotRequired[discord.ui.View]
+
+
+class InteractionSendKwargs(SendKwargs):
+    """Same as `SendKwargs`, but for interaction responses which also support ``ephemeral``."""
+
     ephemeral: NotRequired[bool]
