@@ -30,6 +30,8 @@ class HeroListHero(TypedDict):
 
 
 class ItemListItem(TypedDict):
+    """https://www.dota2.com/datafeed/itemlist?language=english."""
+
     id: int
     name: str
     name_loc: str
