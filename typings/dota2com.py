@@ -8,6 +8,7 @@ from typing import Literal, TypedDict
 
 __all__ = (
     "HeroListHero",
+    "ItemListItem",
     "RealTimeStats",
 )
 
