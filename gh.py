@@ -126,8 +126,8 @@ class CommitInfo:
         If title contains ":some_emoji_name:" then this replaces it with a corresponding unicode character
         (from gitmojis).
 
-        Example
-        -------
+        Examples
+        --------
         Commit's title: ':tada: Testing' -> `.emojified_title`: '🎉 Testing'
         """
         return re.sub(

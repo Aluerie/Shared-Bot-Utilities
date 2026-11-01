@@ -1,11 +1,8 @@
+# Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
+# Licensed under MPL-2.0, see the LICENSE file for details.
 """CUSTOM ERRORS.
 
 All exceptions raised by me should be defined in this file (or subclassed from those).
-
-Notices
--------
-* MPL-2.0 License, see LICENSE file for more details.
-* Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
 """
 
 from dataclasses import dataclass

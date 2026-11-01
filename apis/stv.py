@@ -13,6 +13,15 @@ Just in case, here are some Seven TV Ids so it's less painful to test GraphQL qu
     "userId": "01FAQVCS500002EV4FV330P46A" # IRENE
     "botId": "01KFF67D46PJPD1S6DPFFT06E3" # BOT
 }
+
+References
+----------
+* 7TV API Docs
+  https://7tv.app/api/docs
+* 7TV GraphQL playground.
+  https://7tv.io/v4/gql/playground
+* Remember to search in their issues for some examples of GraphQL requests/responses.
+  https://github.com/SevenTV/SevenTV/issues/216
 """
 
 from __future__ import annotations
@@ -724,15 +733,6 @@ class StvClient:
     This class uses V4 GQL Endpoint: https://api.7tv.app/v4/gql
 
     Most of operations here rely on @IrenesBot's 7TV account as they are performed with its Bearer Token.
-
-    Links
-    -----
-    * https://7tv.app/api/docs
-        7TV API Docs
-    * https://7tv.io/v4/gql/playground
-        7TV GraphQL playground.
-    * https://github.com/SevenTV/SevenTV/issues/216
-        Remember to search in their issues for some examples of GraphQL requests/responses.
 
     Attributes
     ----------

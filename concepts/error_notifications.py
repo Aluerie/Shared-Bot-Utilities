@@ -48,10 +48,10 @@ class ErrorNotificationManager:
     cooldown
         The cooldown between sending errors. This defaults to 5 seconds.
 
-    Source and inspirations
-    -----------------------
-    DuckBot (MPL 2.0 License) by @LeoCx1000 and others
-    * https://github.com/DuckBot-Discord/DuckBot/blob/rewrite/utils/errorhandler.py
+    References
+    ----------
+    * Source and inspirations, DuckBot (MPL 2.0 License) by @LeoCx1000 and others:
+      https://github.com/DuckBot-Discord/DuckBot/blob/rewrite/utils/errorhandler.py
     """
 
     __slots__: tuple[str, ...] = (

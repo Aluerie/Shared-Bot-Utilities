@@ -5,8 +5,8 @@
 This API is not public per se.
 Just looked up some calls in Network tab.
 
-Links
------
+References
+----------
 * https://www.dota2.com/
 """
 

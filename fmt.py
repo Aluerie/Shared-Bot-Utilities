@@ -110,10 +110,10 @@ def add_args_field(embed: discord.Embed, name: str, *args: Any) -> discord.Embed
 def ordinal(n: int | str) -> str:
     """Convert an integer into its ordinal representation, i.e. 0->'0th', '3'->'3rd'.
 
-    Dev Note
-    --------
+    Notes
+    -----
     Remember that there is a funny lambda possibility
-    `ordinal = lambda n: "%d%s" % (n, "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10::4])`
+    ``ordinal = lambda n: "%d%s" % (n, "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10::4])``
     """
     n = int(n)
     suffix = "th" if 11 <= n % 100 <= 13 else ["th", "st", "nd", "rd", "th"][min(n % 10, 4)]
@@ -129,17 +129,17 @@ class plural:  # ruff: ignore[invalid-class-name]
     * if it's a special word (plural form doesn't follow simple "-s" ending rule) then separate them with "|".
     * if you want to skip the number from the output - add "!" to the end of formatting spec.
 
+    References
+    ----------
+    * Rapptz/RoboDanny (licensed MPL v2), ``plural`` class:
+      https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/utils/formats.py
+
     Examples
     --------
     >>> format(plural(1), 'child|children')  # '1 child'
     >>> format(plural(8), 'week|weeks')  # '8 weeks'
     >>> f'{plural(3):reminder}' # '3 reminders'
     >>> f'{plural(3):reminder!}' # 'reminders'
-
-    Sources
-    -------
-    * Rapptz/RoboDanny (licensed MPL v2), `plural` class:
-        https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/utils/formats.py
     """
 
     def __init__(self, number: int) -> None:
@@ -164,15 +164,15 @@ class plural:  # ruff: ignore[invalid-class-name]
 def human_join(seq: Sequence[str], delim: str = ", ", final: str = "or") -> str:
     """Join sequence of string in human-readable format.
 
+    References
+    ----------
+    * Rapptz/RoboDanny (license MPL v2):
+      https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/utils/formats.py
+
     Examples
     --------
     >>> human_join(['Conan Doyle', 'Nabokov', 'Fitzgerald'], final='and')
     'Conan Doyle, Nabokov and Fitzgerald'
-
-    Sources
-    -------
-    * Rapptz/RoboDanny (license MPL v2)
-        https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/utils/formats.py
     """
     size = len(seq)
     if size == 0:

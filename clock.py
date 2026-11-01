@@ -33,10 +33,6 @@ def get_next_hour_start(when: dt.datetime) -> dt.datetime:
 
     This always advances. (e.g. 12:00:00 becomes 13:00:00)
 
-    Source
-    ------
-    * https://stackoverflow.com/a/48108115
-
     Parameters
     ----------
     when
@@ -46,6 +42,10 @@ def get_next_hour_start(when: dt.datetime) -> dt.datetime:
     -------
     dt.datetime
         The start of the next hour.
+
+    References
+    ----------
+    * https://stackoverflow.com/a/48108115
     """
     return when.replace(minute=0, second=0, microsecond=0) + dt.timedelta(hours=1)
 
@@ -152,11 +152,6 @@ def human_datetime_diff(
     Use this function when you need a difference between datetimes, e.g. dates.
     Supports units from years down to seconds.
 
-    Source
-    ------
-    * licensed MPL v2 from Rapptz/RoboDanny
-        https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/utils/time.py
-
     Parameters
     ----------
     when
@@ -175,6 +170,11 @@ def human_datetime_diff(
     -------
     str
         Human-readable description for the datetime difference.
+
+    References
+    ----------
+    * Rapptz/RoboDanny (licensed MPL v2):
+      https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/utils/time.py
 
     Examples
     --------

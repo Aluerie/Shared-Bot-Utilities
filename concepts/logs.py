@@ -71,19 +71,20 @@ def setup_logging(
 class MyColourFormatter(logging.Formatter):
     r"""My colour formatter.
 
-    Sources
-    -------
-    * fully copy-pasted from `discord.utils._ColourFormatter` class and changed a few things.
+    Notes
+    -----
+    ANSI refresher: it starts off with a format like '\x1b[XXXm' where 'XXX' is a semicolon separated list
+    of commands. The important ones here relate to colour.
 
-    ANSI Refresher
-    --------------
-    It starts off with a format like '\x1b[XXXm' where 'XXX' is a semicolon separated list of commands
-    The important ones here relate to colour.
     * 30-37 are black, red, green, yellow, blue, magenta, cyan and white in that order
     * 40-47 are the same except for the background
     * 90-97 are the same but "bright" foreground
     * 100-107 are the same as the bright ones but for the background.
     * 1 means bold, 2 means dim, 0 means reset, and 4 means underline.
+
+    References
+    ----------
+    * Fully copy-pasted from ``discord.utils._ColourFormatter`` class and changed a few things.
     """
 
     # ANSI codes are a bit weird to decipher if you're unfamiliar with them, so here's a refresher

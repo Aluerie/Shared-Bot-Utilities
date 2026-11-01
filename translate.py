@@ -2,14 +2,14 @@
 # Licensed under MPL-2.0, see the LICENSE file for details.
 """Google Translate function.
 
-Sources
--------
-* RoboDanny's translator.py (MPL v2 License)
-    - https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/utils/translator.py
-* Issue #268 by SuperSonicHub1 in py-googletrans
-    - https://github.com/ssut/py-googletrans/issues/268
-* `async-google-trans-new` source code (MIT License)
-    - https://github.com/sevenc-nanashi/async-google-trans-new
+References
+----------
+* RoboDanny's ``translator.py`` (MPL v2 License):
+  https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/utils/translator.py
+* Issue #268 by SuperSonicHub1 in py-googletrans:
+  https://github.com/ssut/py-googletrans/issues/268
+* ``async-google-trans-new`` source code (MIT License):
+  https://github.com/sevenc-nanashi/async-google-trans-new
 """
 
 from __future__ import annotations

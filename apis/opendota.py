@@ -2,8 +2,8 @@
 # Licensed under MPL-2.0, see the LICENSE file for details.
 """Opendota API Wrapper.
 
-Links
------
+References
+----------
 * https://docs.opendota.com/
 * https://www.opendota.com/
 * https://github.com/odota
@@ -62,8 +62,8 @@ class OpenDotaClient:
     async def get_items(self) -> schemas.ItemsQuery:
         """Get Opendota constants items.
 
-        Links
-        -----
+        References
+        ----------
         * https://api.opendota.com/api/constants/items
         * https://raw.githubusercontent.com/odota/dotaconstants/master/build/items.json
         """
