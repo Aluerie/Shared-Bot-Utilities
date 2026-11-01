@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime as dt
 from enum import Enum, IntEnum
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, Final, override
 from urllib.parse import quote
 
@@ -240,24 +241,32 @@ class LocalAPI:
 
     BASE_URL: Final = "http://127.0.0.1:8000"
 
-    def __init__(self, session: aiohttp.ClientSession) -> None:
+    def __init__(self, session: aiohttp.ClientSession, api_key: str) -> None:
         self.session: aiohttp.ClientSession = session
+        self._api_key: str = api_key
 
-    async def _invoke(self, endpoint: str, **params: str | int) -> Any:
+    async def _invoke(self, endpoint: str, *, method: str = "GET", **params: str | int) -> Any:
         try:
-            async with self.session.get(
+            async with self.session.request(
+                method,
                 f"{self.BASE_URL}{endpoint}",
                 params=params or None,
+                headers={"X-API-Key": self._api_key},
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 data = await resp.json()
                 ok = resp.ok
+                status = resp.status
         except aiohttp.ClientError, TimeoutError, ValueError:
             msg = "It seems Dota2Bot is down, please ask Irene to fix it"
             raise errors.RespondWithError(msg) from None
 
         if ok:
             return data
+
+        if status == HTTPStatus.UNAUTHORIZED:
+            msg = "Dota2Bot didn't accept my API key, please ask Irene to fix it"
+            raise errors.RespondWithError(msg)
 
         detail = data.get("detail") if isinstance(data, dict) else None
         if isinstance(detail, str):
@@ -310,7 +319,9 @@ class LocalAPI:
         data: schemas.SteamUser = await self._invoke(f"/steam_user_convert/{quote(argument, safe='')}")
         return SteamUser(data)
 
-    async def get_accept_invite(self, friend_id: int, twitch_id: str) -> SteamUser:
+    async def post_accept_invite(self, friend_id: int, twitch_id: str) -> SteamUser:
         """Allow the Dota2Bot to accept a friend invite from the Steam user for the next few minutes."""
-        data: schemas.SteamUser = await self._invoke("/accept_invite/", friend_id=friend_id, twitch_id=twitch_id)
+        data: schemas.SteamUser = await self._invoke(
+            "/accept_invite/", method="POST", friend_id=friend_id, twitch_id=twitch_id
+        )
         return SteamUser(data)
