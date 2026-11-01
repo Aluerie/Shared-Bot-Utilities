@@ -216,6 +216,8 @@ def loop[LF: _Func](
     name: str | None = None,
     wait_for_ready: bool = False,
 ) -> Callable[[LF], Loop[LF]]:
+    """Loop."""
+
     def decorator(func: LF) -> Loop[LF]:
         return Loop(
             coro=func,
