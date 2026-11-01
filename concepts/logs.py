@@ -31,10 +31,21 @@ def setup_logging(
     *,
     starting_up_art: str,
     filename: str,
+    level: int | str = logging.INFO,
 ) -> Generator[None, Any, Any]:
-    """Set up logging."""
+    """Set up logging.
+
+    Parameters
+    ----------
+    starting_up_art
+        Text that is logged on start-up, so restarts are noticeable in the logs.
+    filename
+        Name of the log file in the ``.temp`` folder.
+    level
+        Level of the root logger. Debug logs of the libraries show up too when it is ``DEBUG``.
+    """
     log = logging.getLogger()
-    log.setLevel(logging.INFO)
+    log.setLevel(level)
 
     try:
         # Stream Handler
@@ -48,7 +59,6 @@ def setup_logging(
         file_handler = RotatingFileHandler(
             filename=f".temp/{filename}",
             encoding="utf-8",
-            mode="w",
             maxBytes=7 * 1024 * 1024,  # MiB
             backupCount=2,  # Rotate through 2 files
         )
