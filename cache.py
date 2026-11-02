@@ -4,12 +4,14 @@
 
 References
 ----------
-* RoboDanny (MPL v2 License)
-    https://github.com/Rapptz/RoboDanny/
+* RoboDanny (MPL v2 License):
+  https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/utils/cache.py
 """
 
 import asyncio
+import contextlib
 import enum
+import logging
 import operator
 import time
 from functools import wraps
@@ -27,12 +29,14 @@ __all__ = (
     "cache",
 )
 
+log = logging.getLogger(__name__)
+
 
 # Can't use ParamSpec due to https://github.com/python/typing/discussions/946
 class CacheProtocol[R](Protocol):
     cache: MutableMapping[str, asyncio.Task[R]]
 
-    def __call__(self, *args: Any, **kwds: Any) -> asyncio.Task[R]: ...
+    def __call__(self, *args: Any, **kwargs: Any) -> asyncio.Task[R]: ...
 
     def get_key(self, *args: Any, **kwargs: Any) -> str: ...
 
@@ -44,7 +48,19 @@ class CacheProtocol[R](Protocol):
 
 
 class ExpiringCache(dict[Any, Any]):  # ruff: ignore[subclass-builtin]
-    """Expiring Cache."""
+    """A dictionary whose entries expire a while after they were set.
+
+    Parameters
+    ----------
+    seconds
+        Time to live of an entry.
+
+    Notes
+    -----
+    Only ``[]``, ``in``, ``get``, ``values``, ``items``, ``len`` and iteration are aware of the expiration.
+    Other ``dict`` methods (``update``, ``setdefault``, ``pop``, ``copy``, ...) bypass the timestamps,
+    so don't use them.
+    """
 
     def __init__(self, seconds: float) -> None:
         self.__ttl: float = seconds
@@ -70,10 +86,21 @@ class ExpiringCache(dict[Any, Any]):  # ruff: ignore[subclass-builtin]
 
     @override
     def get(self, key: str, default: Any = None) -> Any:  # ty: ignore[invalid-method-override]
-        v = super().get(key, default)
-        if v is default:
+        self.__verify_cache_integrity()
+        try:
+            return super().__getitem__(key)[0]
+        except KeyError:
             return default
-        return v[0]
+
+    @override
+    def __len__(self) -> int:
+        self.__verify_cache_integrity()
+        return super().__len__()
+
+    @override
+    def __iter__(self) -> Iterator[Any]:
+        self.__verify_cache_integrity()
+        return super().__iter__()
 
     @override
     def __setitem__(self, key: str, value: Any) -> None:
@@ -81,15 +108,27 @@ class ExpiringCache(dict[Any, Any]):  # ruff: ignore[subclass-builtin]
 
     @override
     def values(self) -> Iterator[Any]:  # ty: ignore[invalid-method-override]
+        self.__verify_cache_integrity()
         return map(operator.itemgetter(0), super().values())
 
     @override
     def items(self) -> Iterator[tuple[Any, Any]]:  # ty: ignore[invalid-method-override]
+        self.__verify_cache_integrity()
         return ((k, v) for k, (v, _) in super().items())
 
 
 class Strategy(enum.Enum):
-    """Strategy."""
+    """How ``cache`` keeps its results.
+
+    Attributes
+    ----------
+    lru
+        Keep the most recently used results, up to ``maxsize`` of them.
+    raw
+        Keep every result forever.
+    timed
+        Keep a result for ``maxsize`` seconds, counting from the start of the call.
+    """
 
     lru = 1
     raw = 2
@@ -106,7 +145,31 @@ def cache[R](
     *,
     ignore_kwargs: bool = False,
 ) -> Callable[[Callable[..., Coroutine[Any, Any, R]]], CacheProtocol[R]]:
-    """Cache."""
+    """Cache the results of an async function by its arguments.
+
+    What is cached is the ``asyncio.Task`` of the call, so concurrent calls with the same arguments share one task.
+    A task that failed or got cancelled is dropped from the cache, only successful results are remembered.
+
+    Parameters
+    ----------
+    maxsize
+        The amount of results to keep for ``Strategy.lru``, the time to live in seconds for ``Strategy.timed``
+        and unused for ``Strategy.raw``.
+    strategy
+        How the results are kept.
+    ignore_kwargs
+        Leave the keyword arguments out of the cache key.
+
+    Returns
+    -------
+    Callable[[Callable[..., Coroutine[Any, Any, R]]], CacheProtocol[R]]
+        The decorator, the decorated function returns a task instead of a coroutine.
+
+    Notes
+    -----
+    The task is shared, so cancelling it (e.g. with a timeout from ``asyncio.wait_for``) cancels it for everyone
+    who awaits it. Wrap the call into ``asyncio.shield`` when that is a concern.
+    """
 
     def decorator(func: Callable[..., Coroutine[Any, Any, R]]) -> CacheProtocol[R]:
         match strategy:
@@ -133,7 +196,7 @@ def cache[R](
             key = [f"{func.__module__}.{func.__name__}"]  # ty: ignore[unresolved-attribute]
             key.extend(_true_repr(o) for o in args)
             if not ignore_kwargs:
-                for k, v in kwargs.items():
+                for k, v in sorted(kwargs.items()):  # sorted, so the order of the keyword arguments doesn't matter
                     # note: this only really works for this use case in particular
                     # I want to pass asyncpg.Connection objects to the parameters
                     # however, they use default __repr__ and I do not care what
@@ -151,13 +214,19 @@ def cache[R](
             Only successful results are worth remembering: a transient failure (e.g. a database hiccup)
             would otherwise be returned for the given key until the bot restarts.
             """
-            if not (task.cancelled() or task.exception() is not None):
-                return
-            try:
+            if not task.cancelled():
+                exception = task.exception()
+                if exception is None:
+                    return
+                # reading the exception marks it as retrieved, so asyncio doesn't report it when nobody awaits the task
+                log.warning(
+                    "Cached call of %s failed, dropping it from the cache.",
+                    func.__qualname__,  # ty: ignore[unresolved-attribute]
+                    exc_info=exception,
+                )
+            with contextlib.suppress(KeyError):
                 if internal_cache.get(key) is task:  # the key could have been invalidated and refilled meanwhile
                     del internal_cache[key]
-            except KeyError:
-                pass
 
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> asyncio.Task[R]:
