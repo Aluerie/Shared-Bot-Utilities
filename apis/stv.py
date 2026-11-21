@@ -332,7 +332,11 @@ query EmoteSetSearchEmoteAlias($emoteSetId: Id!, $emoteId: Id!) {
             variables={"emoteSetId": self.id, "emoteId": emote_id},
         )
 
-        emote: Any | None = res["emotes"]["emote"]["inEmoteSets"][0]["emote"]
+        try:
+            emote: Any | None = res["emotes"]["emote"]["inEmoteSets"][0]["emote"]
+        except TypeError, KeyError, IndexError:
+            # this means res["emotes"]["emote"] is null, i.e. the emote doesn't exist
+            emote = None
         if emote is None:
             msg = f"Could not find {emote_id} in emote set {self.id}"
             raise EmoteNotFoundError(msg)
@@ -638,7 +642,7 @@ query GetUserInfo($platformId: String!) {
 
     async def accept_editor(self) -> Literal["ACCEPTED", "REJECTED"]:
         """Accept Editor."""
-        user_seven_tv_id = (await self.fetch_info())[0]
+        user_seven_tv_id = (await self.fetch_info()).id
         query = """
 mutation UpdateEditorState($userId: Id!, $editorId: Id!, $state: UserEditorUpdateState!) {
   userEditors {
@@ -706,7 +710,7 @@ class EditorCheck:
 
     @property
     def is_enough_permissions(self) -> bool:
-        return self.permissions.get("emoteSet", {}).get("manage", False)
+        return bool(((self.permissions or {}).get("emoteSet") or {}).get("manage", False))
 
 
 class UserInfo(NamedTuple):
@@ -734,11 +738,15 @@ class StvClient:
 
     Most of operations here rely on @IrenesBot's 7TV account as they are performed with its Bearer Token.
 
-    Attributes
+    Parameters
     ----------
-    session: ClientSession | None = None
-        If provided, then the wrapper will use it as its session calls.
-        Otherwise, it will create a new `ClientSession` on every API call.
+    bot_7tv_user_id
+        7TV user id of the bot account.
+    bearer_token
+        7TV Bearer Token of the bot account.
+    session
+        If provided, then the wrapper will use it for its calls and the caller is responsible for closing it.
+        Otherwise, the wrapper creates its own session on the first call; close it with `close()`.
     """
 
     def __init__(
@@ -746,10 +754,27 @@ class StvClient:
         *,
         bot_7tv_user_id: str,
         bearer_token: str | None = None,
+        session: ClientSession | None = None,
     ) -> None:
         self._bearer_token: str | None = bearer_token
         self.user_id: str = bot_7tv_user_id
-        self.session = ClientSession()
+        self._session: ClientSession | None = session
+        self._owns_session: bool = session is None
+
+    @property
+    def session(self) -> ClientSession:
+        """The session used for requests.
+
+        An own session is created lazily, so the client can be constructed outside of a running event loop.
+        """
+        if self._session is None or (self._owns_session and self._session.closed):
+            self._session = ClientSession()
+        return self._session
+
+    async def close(self) -> None:
+        """Close the session if the client created it itself."""
+        if self._owns_session and self._session is not None and not self._session.closed:
+            await self._session.close()
 
     async def invoke(self, query: str, variables: Mapping[str, Any]) -> Any:
         """Invoke a request to 7TV GraphQL API.
@@ -776,7 +801,7 @@ class StvClient:
         try:
             async with (
                 asyncio.timeout(STV_REQUEST_TIMEOUT),
-                (self.session).post(
+                self.session.post(
                     url="https://api.7tv.app/v4/gql",
                     json={"query": query, "variables": variables},
                     headers={"Authorization": f"Bearer {self._bearer_token}"}
@@ -799,9 +824,9 @@ class StvClient:
             msg = "7TV is lagging, it didn't respond in time; try again later?"
             raise ServiceError(msg) from None
 
+        # GraphQL can send partial `data` together with `errors`, so errors have to be checked first,
+        # otherwise a failed mutation would look like a success.
         match gql_json:
-            case {"data": data} if data:
-                return data
             case {"errors": gql_errors} if gql_errors:
                 error = gql_errors[0]
                 # This way we are only raising error corresponding to the first error in the gql_json
@@ -812,6 +837,8 @@ class StvClient:
                     message=error.get("message", ""),
                     code=extensions.get("code", "UNKNOWN_CODE"),
                 )
+            case {"data": data} if data:
+                return data
             case {"status": status} if status == "Unauthorized":
                 # If bearer token expired -
                 # 7TV sends {'status': 'Unauthorized', 'error_code': 1000, 'error': 'invalid session'}

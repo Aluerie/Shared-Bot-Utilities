@@ -5,24 +5,27 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
+import aiohttp
 import orjson
 
 from shared import errors
 
 if TYPE_CHECKING:
-    import aiohttp
     from aiohttp.client import ClientSession
 
     from shared.typings import stratz as schemas
 
     class GraphQLData(TypedDict):
-        data: Any
+        data: NotRequired[Any]
+        errors: NotRequired[list[Any]]
 
 
 __all__ = ("StratzClient",)
 log = logging.getLogger(__name__)
+
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15)  # seconds, aiohttp's default is 5 minutes
 
 
 class StratzClient:
@@ -42,13 +45,18 @@ class StratzClient:
                 "Authorization": f"Bearer {self.bearer_token}",
                 "Content-Type": "application/json",
             },
+            timeout=REQUEST_TIMEOUT,
         ) as resp:
+            if not resp.ok:
+                msg = f"Stratz responded with HTTP {resp.status}"
+                raise errors.ResponseNotOkError(msg)
             graphql_json: GraphQLData = await resp.json(loads=orjson.loads)
-            try:
-                return graphql_json["data"]
-            except KeyError:
-                msg = "Stratz GraphQL API Error:"
-                raise errors.SomethingWentWrongError(msg, data={"graphql_json": graphql_json}) from None
+
+        # GraphQL sends `"data": null` (or no `data`) together with `errors` when the query fails
+        if not (data := graphql_json.get("data")) or bool(graphql_json.get("errors")):
+            msg = "Stratz GraphQL API Error"
+            raise errors.SomethingWentWrongError(msg, data={"graphql_json": graphql_json})
+        return data
 
     async def get_items(self) -> list[schemas.Item]:
         """Get Constants for Dota 2 Items."""

@@ -249,7 +249,8 @@ def cache[R](
                 return True
 
         def _invalidate_containing(key: str) -> None:
-            to_remove = [k for k in internal_cache if key in k]
+            # `.keys()` because `lru.LRU` doesn't support iteration directly
+            to_remove = [k for k in internal_cache.keys() if key in k]  # ruff: ignore[in-dict-keys]
             for k in to_remove:
                 try:
                     del internal_cache[k]

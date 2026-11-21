@@ -180,9 +180,10 @@ def human_datetime_diff(
     --------
     .. code-block:: python
 
-        human_datetime_diff(when, mode="full")  # "2 hours 1 minute 6 seconds"
-        human_datetime_diff(when, mode="short")  # "2 hrs 1 min 6 sec"
-        human_datetime_diff(when, mode="letter")  # "02h01m06s"
+        # `when` is 2 hours 1 minute 6 seconds away
+        human_datetime_diff(when, mode="full")  # "2 hours 1 minute"
+        human_datetime_diff(when, mode="short", max_units=None)  # "2 hrs 1 min 6 sec"
+        human_datetime_diff(when, mode="letter", max_units=None)  # "02h01m06s"
 
     """
     _validate_mode(mode)
@@ -220,7 +221,7 @@ def human_datetime_diff(
 def human_timedelta(
     td: dt.timedelta,
     *,
-    max_units: int | None = 3,
+    max_units: int | None = 2,
     mode: HumanTimedeltaMode = "full",
 ) -> str: ...
 
@@ -232,7 +233,7 @@ def human_timedelta(
     hours: float | None = None,
     minutes: float | None = None,
     seconds: float | None = None,
-    max_units: int | None = 3,
+    max_units: int | None = 2,
     mode: HumanTimedeltaMode = "full",
 ) -> str: ...
 
@@ -281,9 +282,9 @@ def human_timedelta(
     .. code-block:: python
 
         td = dt.timedelta(hours=2, seconds=66)
-        human_timedelta(td, mode="full")  # "2 hours 1 minute 6 seconds"
-        human_timedelta(td, mode="short")  # "2 hrs 1 min 6 sec"
-        human_timedelta(td, mode="letter")  # "02h01m06s"
+        human_timedelta(td, mode="full")  # "2 hours 1 minute"
+        human_timedelta(td, mode="short", max_units=None)  # "2 hrs 1 min 6 sec"
+        human_timedelta(td, mode="letter", max_units=None)  # "02h01m06s"
 
     """
     if all(x is None for x in (td, days, hours, minutes, seconds)):

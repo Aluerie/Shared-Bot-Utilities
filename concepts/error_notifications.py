@@ -13,7 +13,7 @@ import traceback
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from shared import clock
+from shared import clock, fmt
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -121,7 +121,7 @@ class ErrorNotificationManager:
 
         traceback_string = self._shorten_re.sub(
             repl=lambda mo: self._shortenings[mo.group()],
-            string="".join(traceback.format_exception(error)),
+            string=fmt.escape_backticks("".join(traceback.format_exception(error))),
         )
 
         async with self._lock:

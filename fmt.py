@@ -2,6 +2,7 @@
 # Licensed under MPL-2.0, see the LICENSE file for details.
 """Formatting utilities."""
 
+import re
 from typing import TYPE_CHECKING, Any, override
 
 if TYPE_CHECKING:
@@ -16,6 +17,7 @@ __all__ = (
     "add_mapping_field",
     "bullet_list",
     "codeblock",
+    "escape_backticks",
     "human_join",
     "ordinal",
     "pformat_args",
@@ -59,8 +61,16 @@ CODE_LANGUAGES = [
 # cSpell:enable
 
 
-def _escape_backticks(text: str) -> str:
-    return text.replace("```", "``\u200b`")
+_BACKTICK_RUN_RE = re.compile(r"`(?=`)")
+
+
+def escape_backticks(text: str) -> str:
+    """Break up backtick runs with zero-width spaces, so `text` can't close a triple backtick codeblock early.
+
+    Every backtick that is followed by another one gets a zero-width space after it, so the result has no two
+    adjacent backticks at all. Escaping already escaped text changes nothing.
+    """
+    return _BACKTICK_RUN_RE.sub("`\u200b", text)
 
 
 def codeblock(text: str, language: str = "py") -> str:
@@ -71,7 +81,7 @@ def codeblock(text: str, language: str = "py") -> str:
 
     See `fmt.CODE_LANGUAGES` for the code languages Discord supports.
     """
-    return f"```{language}\n{_escape_backticks(text)}\n```"
+    return f"```{language}\n{escape_backticks(text)}\n```"
 
 
 def pformat_mapping(mapping: Mapping[str, Any], *, limit: int | None = None) -> str:
@@ -84,7 +94,7 @@ def pformat_mapping(mapping: Mapping[str, Any], *, limit: int | None = None) -> 
 
     name_width = min(max(map(len, mapping)), _MAX_KWARG_NAME_WIDTH)
     lines = (f"{name:<{name_width}} = {value!r}" for name, value in mapping.items())
-    text = _escape_backticks("\n".join(lines))
+    text = escape_backticks("\n".join(lines))
     if limit is not None:
         room = limit - len(codeblock(""))
         if len(text) > room:
@@ -116,7 +126,8 @@ def ordinal(n: int | str) -> str:
     ``ordinal = lambda n: "%d%s" % (n, "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10::4])``
     """
     n = int(n)
-    suffix = "th" if 11 <= n % 100 <= 13 else ["th", "st", "nd", "rd", "th"][min(n % 10, 4)]
+    last_two = abs(n) % 100
+    suffix = "th" if 11 <= last_two <= 13 else ["th", "st", "nd", "rd", "th"][min(last_two % 10, 4)]
     return str(n) + suffix
 
 

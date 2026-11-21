@@ -199,11 +199,7 @@ def extract_one[T](
     See extract() for the full arguments list.
     """
     it = _extraction_generator(query, choices, scorer, score_cutoff)
-    try:
-        return max(it, key=operator.itemgetter(1))
-    except:  # ruff: ignore[bare-except]
-        # iterator could return nothing
-        return None
+    return max(it, key=operator.itemgetter(1), default=None)  # the iterator could yield nothing
 
 
 @overload

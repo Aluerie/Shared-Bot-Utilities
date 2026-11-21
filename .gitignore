@@ -3,3 +3,8 @@ __pycache__/
 
 # Windows `desktop.ini` memes
 desktop.ini
+
+# Local environment and tool caches (when working on this repo on its own)
+.venv/
+.pytest_cache/
+.ruff_cache/

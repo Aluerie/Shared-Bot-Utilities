@@ -14,16 +14,19 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+import aiohttp
 import orjson
 
-if TYPE_CHECKING:
-    import aiohttp
+from shared import errors
 
+if TYPE_CHECKING:
     from shared.typings import opendota as schemas
 
 
 __all__ = ("OpenDotaClient",)
 log = logging.getLogger(__name__)
+
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15)  # seconds, aiohttp's default is 5 minutes
 
 
 class Match:
@@ -51,7 +54,10 @@ class OpenDotaClient:
     async def _invoke(self, endpoint: str) -> Any:
         """Invoke a request to OpenDota API."""
         url = f"https://api.opendota.com/api/{endpoint}"
-        async with self.session.get(url=url) as resp:
+        async with self.session.get(url=url, timeout=REQUEST_TIMEOUT) as resp:
+            if not resp.ok:
+                msg = f"OpenDota responded with HTTP {resp.status} for {endpoint!r}"
+                raise errors.ResponseNotOkError(msg)
             return await resp.json(loads=orjson.loads)
 
     async def matches(self, match_id: int) -> Match:

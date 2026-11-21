@@ -254,9 +254,15 @@ class LocalAPI:
                 headers={"X-API-Key": self._api_key},
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
-                data = await resp.json()
                 ok = resp.ok
                 status = resp.status
+                try:
+                    data = await resp.json()
+                except aiohttp.ContentTypeError, ValueError:
+                    if ok:
+                        raise
+                    # error responses don't have to be JSON (e.g. a plain text 500), the status is enough then
+                    data = None
         except aiohttp.ClientError, TimeoutError, ValueError:
             msg = "It seems Dota2Bot is down, please ask Irene to fix it"
             raise errors.RespondWithError(msg) from None
@@ -271,6 +277,9 @@ class LocalAPI:
         detail = data.get("detail") if isinstance(data, dict) else None
         if isinstance(detail, str):
             raise errors.RespondWithError(detail)
+        if status >= HTTPStatus.INTERNAL_SERVER_ERROR:
+            msg = "Dota2Bot ran into an internal error, please ask Irene to fix it"
+            raise errors.RespondWithError(msg)
         # FastAPI sends a list as `detail` when it rejects the request itself (HTTP 422)
         msg = "Dota2Bot didn't understand the request, please ask Irene to fix it"
         raise errors.RespondWithError(msg)

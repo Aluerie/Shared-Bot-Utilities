@@ -1,0 +1,45 @@
+[project]
+name = "shared"
+version = "0.1.0"
+description = "Shared utilities, packages, small API wrappers for my bots."
+readme = ".github/README.md"
+requires-python = ">=3.15"
+license = { file = ".github/LICENSE" }
+# Runtime dependencies of `shared` itself.
+# The bots that use this repo as a git submodule must have these in their own `pyproject.toml` too.
+dependencies = [
+    "aiohttp",
+    "asyncpg",
+    "click",
+    "discord-py",
+    "lru-dict",
+    "orjson",
+    "pygit2",
+    "python-dateutil",
+    "steamio",
+    "uvloop ; sys_platform == 'linux'",
+]
+
+[tool.uv]
+# This repo is not an installable package: it's imported as `shared` from the folder above it
+# (`src/` in the bots, the checkout folder's parent in CI).
+package = false
+
+[tool.uv.sources]
+steamio = { git = "https://github.com/Aluerie/steam.py", rev = "introduce-ext.dota2" }
+
+[dependency-groups]
+dev = [
+    "asyncpg-stubs",
+    "pytest",
+    "pytest-asyncio",
+]
+
+[tool.pytest.ini_options]
+# `tests/` is a package (`shared.tests`), so pytest puts the folder above `shared/` on `sys.path`
+# and `import shared` works both from the bots (`src/`) and from a standalone checkout named `shared`.
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = ["--strict-markers", "--strict-config"]
+filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]

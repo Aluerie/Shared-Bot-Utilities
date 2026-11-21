@@ -120,6 +120,7 @@ class DiscordWebhookLogs:
         self.logs_handler = LoggingHandler(self)
 
         self.rate_limit_message: str = ""
+        self._event_loop: asyncio.AbstractEventLoop | None = None
 
     @discord.utils.cached_property
     def logger_webhook(self) -> discord.Webhook:
@@ -129,6 +130,7 @@ class DiscordWebhookLogs:
     async def load(self) -> None:
         """Start mirroring logs."""
         self.rate_limit_message = f"Webhook ID {self.logger_webhook.id} is rate limited."
+        self._event_loop = asyncio.get_running_loop()
         self.logging_worker.start()
         logging.getLogger().addHandler(self.logs_handler)
 
@@ -136,11 +138,29 @@ class DiscordWebhookLogs:
         """Stop mirroring logs."""
         self.logging_worker.stop()
         logging.getLogger().removeHandler(self.logs_handler)
-        del self.logs_handler
 
     def add_record(self, record: logging.LogRecord) -> None:
-        """Queue a record for the worker to send. Never blocks."""
-        self._logging_queue.put_nowait(record)
+        """Queue a record for the worker to send. Never blocks.
+
+        Records can be logged from any thread (e.g. `asyncio.to_thread`, executors, library threads),
+        but `asyncio.Queue` is not thread-safe, so records from other threads are handed over to the event loop.
+        """
+        event_loop = self._event_loop
+        if event_loop is None:
+            return  # not loaded yet
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
+        if running_loop is event_loop:
+            self._logging_queue.put_nowait(record)
+            return
+        try:
+            event_loop.call_soon_threadsafe(self._logging_queue.put_nowait, record)
+        except RuntimeError:
+            # the event loop is closed (e.g. a thread logs during shutdown), there is nobody to send the record
+            return
 
     def get_avatar(self, username: str) -> str:
         """Pick the avatar URL for a webhook message.

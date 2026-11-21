@@ -120,7 +120,7 @@ class CommitInfo:
     tz: dt.timezone
 
     @property
-    def emojified_title(self) -> str | None:
+    def emojified_title(self) -> str:
         """Emojified commit's short title.
 
         If title contains ":some_emoji_name:" then this replaces it with a corresponding unicode character
@@ -144,9 +144,10 @@ class CommitInfo:
     @property
     def url(self) -> str:
         """Commit's url."""
-        if (repo_url := self.repo.remotes["origin"].url) is not None:
-            repo_url = repo_url.removesuffix(".git")
-        return f"{repo_url}/commit/{self.id}"
+        repo_url = self.repo.remotes["origin"].url or ""
+        if repo_url.startswith("git@github.com:"):  # SSH remote
+            repo_url = "https://github.com/" + repo_url.removeprefix("git@github.com:")
+        return f"{repo_url.removesuffix('.git')}/commit/{self.id}"
 
 
 def get_commit_info(repo: pygit2.repository.Repository, commit: pygit2.Commit) -> CommitInfo:
@@ -157,7 +158,7 @@ def get_commit_info(repo: pygit2.repository.Repository, commit: pygit2.Commit) -
         id=commit.id,
         short_title=short[0:50] + "..." if len(short) > 50 else short,
         short_sha2=str(commit.id)[0:7],
-        utc_dt=dt.datetime.fromtimestamp(commit.commit_time).astimezone(dt.UTC),
+        utc_dt=dt.datetime.fromtimestamp(commit.commit_time, dt.UTC),
         tz=dt.timezone(dt.timedelta(minutes=commit.commit_time_offset)),
     )
 

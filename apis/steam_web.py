@@ -27,6 +27,8 @@ __all__ = (
 )
 log = logging.getLogger(__name__)
 
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15)  # seconds, aiohttp's default is 5 minutes
+
 
 class RealTimeStatsPlayer:
     """A player's live stats within an in-progress Dota 2 match.
@@ -159,6 +161,7 @@ class SteamWebAPIClient:
             url=f"https://api.steampowered.com/{endpoint}",
             params={"key": self.api_key, **query_kwargs},
             headers={"User-Agent": globs.USER_AGENT},
+            timeout=REQUEST_TIMEOUT,
         ) as resp:
             if resp.ok:
                 data = await resp.json(loads=orjson.loads)
@@ -171,7 +174,7 @@ class SteamWebAPIClient:
         """Make a request to the Steam Web API, retrying on transient failures.
 
         Retries up to 10 times, waiting 0.5 seconds between attempts, on non-OK statuses, empty responses,
-        network errors and timeouts.
+        malformed bodies, network errors and timeouts.
 
         Parameters
         ----------
@@ -194,7 +197,13 @@ class SteamWebAPIClient:
         for attempt in range(self.MAX_RETRY_ATTEMPTS):
             try:
                 return await self._invoke(endpoint, **query_kwargs)
-            except (errors.ResponseNotOkError, errors.EmptyResponseError, aiohttp.ClientError, TimeoutError) as exc:
+            except (
+                errors.ResponseNotOkError,
+                errors.EmptyResponseError,
+                aiohttp.ClientError,
+                TimeoutError,
+                ValueError,  # orjson.JSONDecodeError
+            ) as exc:
                 if attempt < self.MAX_RETRY_ATTEMPTS - 1:
                     await asyncio.sleep(self.SLEEP_BETWEEN_ATTEMPTS)
                 last_exc = exc
