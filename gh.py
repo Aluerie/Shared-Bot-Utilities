@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import datetime as dt
 import itertools
-import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,8 +19,6 @@ __all__ = (
     "get_latest_commits",
 )
 
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 GITMOJI_MAPPING = {
     # I freaking love https://gitmoji.dev/specification commit format

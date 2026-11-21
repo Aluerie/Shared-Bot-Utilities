@@ -4,11 +4,11 @@
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 import aiohttp
 import orjson
+from loguru import logger
 
 from shared import errors
 
@@ -23,7 +23,6 @@ if TYPE_CHECKING:
 
 
 __all__ = ("StratzClient",)
-log = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15)  # seconds, aiohttp's default is 5 minutes
 
@@ -60,7 +59,7 @@ class StratzClient:
 
     async def get_items(self) -> list[schemas.Item]:
         """Get Constants for Dota 2 Items."""
-        log.debug("🍋 Stratz GraphQL API: getting items.")
+        logger.debug("🍋 Stratz GraphQL API: getting items.")
         query = """
         query AllItemsQuery {
             constants {

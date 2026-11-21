@@ -11,12 +11,12 @@ References
 import asyncio
 import contextlib
 import enum
-import logging
 import operator
 import time
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Protocol, assert_never, override
 
+from loguru import logger
 from lru import LRU
 
 if TYPE_CHECKING:
@@ -28,8 +28,6 @@ __all__ = (
     "Strategy",
     "cache",
 )
-
-log = logging.getLogger(__name__)
 
 
 # Can't use ParamSpec due to https://github.com/python/typing/discussions/946
@@ -219,10 +217,9 @@ def cache[R](
                 if exception is None:
                     return
                 # reading the exception marks it as retrieved, so asyncio doesn't report it when nobody awaits the task
-                log.warning(
-                    "Cached call of %s failed, dropping it from the cache.",
+                logger.opt(exception=exception).warning(
+                    "Cached call of {} failed, dropping it from the cache.",
                     func.__qualname__,  # ty: ignore[unresolved-attribute]
-                    exc_info=exception,
                 )
             with contextlib.suppress(KeyError):
                 if internal_cache.get(key) is task:  # the key could have been invalidated and refilled meanwhile

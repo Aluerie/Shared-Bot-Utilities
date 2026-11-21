@@ -12,6 +12,7 @@ dependencies = [
     "asyncpg",
     "click",
     "discord-py",
+    "loguru>=0.8.0",
     "lru-dict",
     "orjson",
     "pygit2",

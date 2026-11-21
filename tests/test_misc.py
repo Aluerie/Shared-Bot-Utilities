@@ -2,11 +2,12 @@
 # Licensed under MPL-2.0, see the LICENSE file for details.
 """Tests for the small modules: ``ut``, ``gh``, ``globs`` and ``concepts.logs``."""
 
-import logging
 from typing import TYPE_CHECKING
 
+from loguru import logger
+
 from shared import gh, globs, ut
-from shared.concepts import PrefixLoggerAdapter
+from shared.concepts import prefixed_logger
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -27,12 +28,10 @@ def test_missing_sentinel() -> None:
 
 
 async def test_measure_time_logs(caplog: pytest.LogCaptureFixture) -> None:
-    logger = logging.getLogger("tests.measure_time")
-    with caplog.at_level(logging.DEBUG, logger=logger.name):
-        with ut.measure_time("sync block", logger=logger) as timer:
-            pass
-        async with ut.measure_time("async block", logger=logger):
-            pass
+    with ut.measure_time("sync block", logger=logger) as timer:
+        pass
+    async with ut.measure_time("async block", logger=logger):
+        pass
     assert timer.end >= 0
     assert "sync block PT" in caplog.text
     assert "async block PT" in caplog.text
@@ -72,8 +71,6 @@ def test_globs_constants() -> None:
     assert all(0 <= color <= 0xFFFFFF for color in globs.Color)
 
 
-def test_prefix_logger_adapter(caplog: pytest.LogCaptureFixture) -> None:
-    logger = logging.getLogger("tests.prefix")
-    with caplog.at_level(logging.INFO, logger=logger.name):
-        PrefixLoggerAdapter(logger, "🍋").info("hello %s", "world")
+def test_prefixed_logger(caplog: pytest.LogCaptureFixture) -> None:
+    prefixed_logger("🍋").info("hello {}", "world")
     assert caplog.messages == ["🍋 hello world"]

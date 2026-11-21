@@ -13,12 +13,12 @@ References
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import TYPE_CHECKING, Any, override
 from warnings import deprecated
 
 import aiohttp
 import orjson
+from loguru import logger
 
 from shared import errors, globs
 
@@ -37,7 +37,6 @@ __all__ = (
     "RealTimeStatsPlayer",
 )
 
-log = logging.getLogger(__name__)
 
 BASE_URL = "https://www.dota2.com"
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15)  # seconds, aiohttp's default is 5 minutes
@@ -182,7 +181,9 @@ class Dota2comClient:
                 ValueError,  # orjson.JSONDecodeError
             ) as exc:
                 last_exc = exc
-                log.debug("Dota2com %r attempt %d/%d failed: %r", endpoint, attempt + 1, self.MAX_RETRY_ATTEMPTS, exc)
+                logger.debug(
+                    "Dota2com {!r} attempt {}/{} failed: {!r}", endpoint, attempt + 1, self.MAX_RETRY_ATTEMPTS, exc
+                )
                 if attempt < self.MAX_RETRY_ATTEMPTS - 1:
                     await asyncio.sleep(self.SLEEP_BETWEEN_ATTEMPTS * 2**attempt)
 

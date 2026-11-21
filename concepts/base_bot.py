@@ -4,12 +4,12 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from pkgutil import iter_modules
 from typing import TYPE_CHECKING, Any
 
 import discord
+from loguru import logger
 
 from shared import errors
 
@@ -28,10 +28,6 @@ except ModuleNotFoundError:
 
 
 __all__ = ("BotBase",)
-
-
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 
 class BotBase:
@@ -159,6 +155,6 @@ class BotBase:
         if policy.respond:
             try:
                 await respond(response)
-            except Exception:
-                log.warning("Failed to respond to the user", exc_info=True)
+            except Exception:  # ruff: ignore[blind-except] the traceback is logged via `opt(exception=True)`
+                logger.opt(exception=True).warning("Failed to respond to the user")
         return policy.notify

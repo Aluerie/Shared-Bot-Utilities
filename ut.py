@@ -10,12 +10,15 @@ This module contains some utilities that I could not categorize anywhere.
 from __future__ import annotations
 
 import asyncio
-import logging
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, Self, override
 
+from loguru import logger as _logger
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from loguru import Logger
 
 
 __all__ = (
@@ -24,10 +27,6 @@ __all__ = (
     "ni",
     "run",
 )
-
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-
 
 try:
     import uvloop  # ty: ignore[unresolved-import, unused-ignore-comment, unused-ignore-comment]
@@ -82,13 +81,13 @@ class measure_time:  # ruff: ignore[invalid-class-name]
     async with measure_time("My long async operation"):
         await asyncio.sleep(5)
     ```
-    It will output the perf_counter with `log.debug`.
+    It will output the perf_counter with `logger.debug`.
 
     """
 
-    def __init__(self, name: str = "Unnamed", *, logger: logging.Logger = log) -> None:
+    def __init__(self, name: str = "Unnamed", *, logger: Logger = _logger) -> None:
         self.name: str = name
-        self.log: logging.Logger = logger
+        self.log: Logger = logger
         self.start: float = 0.0
         self.end: float = 0.0
 
@@ -108,7 +107,7 @@ class measure_time:  # ruff: ignore[invalid-class-name]
         * maybe there are better ideas for abbreviations than PT.
         """
         self.end = end = perf_counter() - self.start
-        self.log.debug("%s PT: %.6f secs", self.name, end)
+        self.log.debug("{} PT: {:.6f} secs", self.name, end)
 
     def __exit__(self, *_: object) -> None:
         self.measure_time()

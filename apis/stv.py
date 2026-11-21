@@ -27,12 +27,12 @@ References
 from __future__ import annotations
 
 import asyncio
-import logging
 import re
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, NotRequired, TypedDict, override
 
 import orjson
 from aiohttp import ClientSession
+from loguru import logger
 
 from shared import errors
 
@@ -79,9 +79,6 @@ __all__ = (
     "UnauthorizedError",
     "UnsatisfyingResultError",
 )
-
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
 
 
 # --- CONSTANTS --------------------------------------------------------------------------------------------------------
@@ -788,7 +785,7 @@ class StvClient:
         """
         match = re.search(r"^\s*(?:query|mutation)\s+(?P<query_name>\w+)\s*(?:\(|\{)", query)
         query_name = match.group("query_name") if match else "UnknownQuery"
-        log.debug("7TV GraphQL - invoking query %s", query_name)
+        logger.debug("7TV GraphQL - invoking query {}", query_name)
 
         try:
             async with (
@@ -805,8 +802,8 @@ class StvClient:
                     gql_json = await response.json(loads=orjson.loads)
                 else:
                     msg = "7TV is unavailable/lagging/down"
-                    log.warning(
-                        "7TV response to %s was not ok. Status: %s Text:\n%s",
+                    logger.warning(
+                        "7TV response to {} was not ok. Status: {} Text:\n{}",
                         query_name,
                         response.status,
                         await response.text(),

@@ -1,29 +1,92 @@
 # Copyright (C) 2020-present, Irene Adler ❤ (@Aluerie).
 # Licensed under MPL-2.0, see the LICENSE file for details.
-"""Logging Setup."""
+"""Logging Setup.
+
+All our own code logs with `loguru`. Libraries (discord.py, twitchio, steam.py, aiohttp, ...) still use the
+standard `logging` module, so `InterceptHandler` re-routes their records into loguru, and everything ends up
+in the same sinks (console, rotating file, Discord webhook).
+"""
 
 from __future__ import annotations
 
 import logging
 import platform
-import time
-import traceback
+import sys
 from contextlib import contextmanager
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, override
+from typing import TYPE_CHECKING, Any, Final, override
 
-import discord
+from loguru import logger
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
+    from loguru import Logger, Record
+
 __all__ = (
-    "PrefixLoggerAdapter",
+    "InterceptHandler",
+    "prefixed_logger",
     "setup_logging",
 )
 
-logging.Formatter.converter = time.gmtime
+_COLUMNS: Final = "{level.icon} {level: <8.8} {name: <30} {line: <4} {function: <35} {message}"
+FILE_FORMAT: Final = "{time:HH:mm:ss DD/MM!UTC} " + _COLUMNS
+CONSOLE_FORMAT: Final = (
+    "<white><bold>{time:HH:mm:ss DD/MM!UTC}</bold></white> {level.icon} <level>{level: <8.8}</level> "
+    "<magenta>{name: <30}</magenta> <light-green>{line: <4}</light-green> <cyan>{function: <35}</cyan> {message}"
+)
+# Level name -> (colour, icon). Loguru's built-in levels, from the most verbose:
+# TRACE (5), DEBUG (10), INFO (20), SUCCESS (25), WARNING (30), ERROR (40), CRITICAL (50).
+# Icons are shown in the console, the file and the Discord webhook. They are all double-width emojis
+# without the `U+FE0F` variation selector (unlike the usual info/warning sign emojis),
+# so the columns stay aligned in any terminal.
+LEVELS: Final[dict[str, tuple[str, str]]] = {
+    "TRACE": ("<dim>", "🔍"),
+    "DEBUG": ("<BLACK><bold>", "🐛"),
+    "INFO": ("<blue><bold>", "💬"),
+    "SUCCESS": ("<green><bold>", "✅"),
+    "WARNING": ("<yellow><bold>", "🔶"),
+    "ERROR": ("<red>", "❌"),
+    "CRITICAL": ("<RED>", "💥"),
+}
+
+
+class InterceptHandler(logging.Handler):
+    """Standard `logging` handler that forwards records into loguru.
+
+    Libraries keep logging with `logging.getLogger(__name__)`; this handler is attached to the root logger,
+    so their records get the same formatting and sinks as ours.
+    """
+
+    @override
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            level: str | int = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+
+        def patch(loguru_record: Record) -> None:
+            # Point at the library's code instead of this handler.
+            loguru_record.update(name=record.name, function=record.funcName, line=record.lineno)
+
+        exc_info = record.exc_info
+        exception = exc_info if isinstance(exc_info, tuple) and exc_info[0] is not None else None
+        logger.patch(patch).opt(exception=exception).log(level, record.getMessage())
+
+
+def prefixed_logger(prefix: str) -> Logger:
+    """Get a logger that puts `prefix` in front of every message.
+
+    I like logs from the same module having the same emoji as some sort of identifier.
+
+    Examples
+    --------
+    ```py
+    log = prefixed_logger("🍋")
+    log.info("hello {}", "world")  # 🍋 hello world
+    ```
+    """
+    return logger.patch(lambda record: record.update(message=f"{prefix} {record['message']}"))
 
 
 @contextmanager
@@ -42,136 +105,42 @@ def setup_logging(
     filename
         Name of the log file in the ``.temp`` folder.
     level
-        Level of the root logger. Debug logs of the libraries show up too when it is ``DEBUG``.
+        Minimum level for the console and file sinks; libraries' standard `logging` records below it
+        are dropped too. Debug logs of the libraries show up when it is ``DEBUG``.
+        Loguru-only level names such as ``"TRACE"`` or ``"SUCCESS"`` work too.
     """
-    log = logging.getLogger()
-    log.setLevel(level)
+    logger.remove()  # the default `stderr` sink
+    for name, (colour, icon) in LEVELS.items():
+        logger.level(name, color=colour, icon=icon)
+
+    root = logging.getLogger()
+    intercept_handler = InterceptHandler()
+    root.addHandler(intercept_handler)
+    # standard `logging` doesn't know loguru-only names like "TRACE"/"SUCCESS", so give it the number
+    root.setLevel(logger.level(level).no if isinstance(level, str) else level)
 
     try:
-        # Stream Handler
-        handler = logging.StreamHandler()
-        handler.setFormatter(fmt=get_logging_formatter(handler))
-        log.addHandler(handler)
+        # `diagnose=False`: variable values in tracebacks could leak tokens/secrets into the logs.
+        logger.add(sys.stderr, level=level, format=CONSOLE_FORMAT, backtrace=True, diagnose=False)
 
-        # ensure logs folder
         Path(".temp/").mkdir(parents=True, exist_ok=True)
-        # File Handler
-        file_handler = RotatingFileHandler(
-            filename=f".temp/{filename}",
+        logger.add(
+            f".temp/{filename}",
+            level=level,
+            format=FILE_FORMAT,
             encoding="utf-8",
-            maxBytes=7 * 1024 * 1024,  # MiB
-            backupCount=2,  # Rotate through 2 files
+            rotation="7 MB",
+            retention=2,  # Keep 2 rotated files
+            backtrace=True,
+            diagnose=False,
         )
-        file_handler.setFormatter(fmt=get_logging_formatter(file_handler))
-        log.addHandler(file_handler)
 
         if platform.system() == "Linux":
             # so start-ups in logs are way more noticeable
-            log.info(starting_up_art)
+            logger.info(starting_up_art)
 
         yield
     finally:
         # __exit__
-        handlers = log.handlers[:]
-        for h in handlers:
-            h.close()
-            log.removeHandler(h)
-
-
-class MyColourFormatter(logging.Formatter):
-    r"""My colour formatter.
-
-    Notes
-    -----
-    ANSI refresher: it starts off with a format like '\x1b[XXXm' where 'XXX' is a semicolon separated list
-    of commands. The important ones here relate to colour.
-
-    * 30-37 are black, red, green, yellow, blue, magenta, cyan and white in that order
-    * 40-47 are the same except for the background
-    * 90-97 are the same but "bright" foreground
-    * 100-107 are the same as the bright ones but for the background.
-    * 1 means bold, 2 means dim, 0 means reset, and 4 means underline.
-
-    References
-    ----------
-    * Fully copy-pasted from ``discord.utils._ColourFormatter`` class and changed a few things.
-    """
-
-    # ANSI codes are a bit weird to decipher if you're unfamiliar with them, so here's a refresher
-
-    LEVEL_COLORS = (
-        (logging.DEBUG, "\x1b[40;1m"),
-        (logging.INFO, "\x1b[34;1m"),
-        (logging.WARNING, "\x1b[33;1m"),
-        (logging.ERROR, "\x1b[31m"),
-        (logging.CRITICAL, "\x1b[41m"),
-    )
-
-    FORMATS: ClassVar[dict[int, logging.Formatter]] = {
-        level: logging.Formatter(
-            fmt=(
-                f"\x1b[37;1m%(asctime)s\x1b[0m {color}%(levelname)-8.8s\x1b[0m \x1b[35m%(name)-30s\x1b[0m "
-                "\x1b[92m%(lineno)-4d\x1b[0m \x1b[36m%(funcName)-35s\x1b[0m %(message)s"
-            ),
-            datefmt="%H:%M:%S %d/%m",
-        )
-        for level, color in LEVEL_COLORS
-    }
-
-    @override
-    def format(self, record: logging.LogRecord) -> str:
-        formatter = self.FORMATS.get(record.levelno)
-        if formatter is None:
-            formatter = self.FORMATS[logging.DEBUG]
-
-        if bool(record.exc_info):
-            # ORIGINAL discord.py:
-            # Override the traceback to always print in red
-            # text = formatter.formatException(record.exc_info)
-            # record.exc_text = f"\x1b[31m{text}\x1b[0m"
-            # ------------------------------------------
-            # MINE: extra colorization introduced with Python 3.13
-            # `colorize=True` is not documented hence 'ignore[no-matching-overload]',
-            # but I'm not sure how I'm supposed to do it otherwise;
-            # setting `os.environ["FORCE_COLOR"] = 1` doesn't work for `traceback` methods.
-            record.exc_text = "".join(
-                traceback.format_exception(
-                    record.exc_info[0], value=record.exc_info[1], tb=record.exc_info[2], colorize=True
-                )  # ty: ignore[no-matching-overload]
-            )
-
-        output = formatter.format(record)
-
-        # Remove the cache layer
-        record.exc_text = None
-        return output
-
-
-def get_logging_formatter(handler: logging.Handler) -> logging.Formatter:
-    return (
-        MyColourFormatter()
-        if (
-            isinstance(handler, logging.StreamHandler)
-            and discord.utils.stream_supports_colour(handler.stream)
-            and not isinstance(handler, RotatingFileHandler)
-        )
-        else logging.Formatter(
-            fmt="%(asctime)s %(levelname)-8.8s %(name)-30s %(lineno)-4d %(funcName)-35s %(message)s",
-            datefmt="%H:%M:%S %d/%m",
-        )
-    )
-
-
-class PrefixLoggerAdapter(logging.LoggerAdapter[Any]):
-    """Logger Adapter that simply adds a prefix to the log message.
-
-    I like having same module logs having same emoji as some sort of identifier.
-    """
-
-    def __init__(self, logger: logging.Logger, prefix: str) -> None:
-        super().__init__(logger)
-        self.prefix = prefix
-
-    @override
-    def process(self, msg: str, kwargs: Any) -> tuple[str, Any]:
-        return f"{self.prefix} {msg}", kwargs
+        logger.remove()
+        root.removeHandler(intercept_handler)

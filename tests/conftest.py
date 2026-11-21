@@ -8,10 +8,11 @@ from typing import TYPE_CHECKING, Any, Self
 
 import orjson
 import pytest
+from loguru import logger
 from yarl import URL
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
 
 class FakeResponse:
@@ -65,6 +66,14 @@ class FakeSession:
 
     def post(self, url: str, **kwargs: Any) -> FakeResponse:
         return self.request("POST", url, **kwargs)
+
+
+@pytest.fixture
+def caplog(caplog: pytest.LogCaptureFixture) -> Generator[pytest.LogCaptureFixture]:
+    """Make pytest's ``caplog`` see loguru records too (loguru doesn't go through the standard ``logging``)."""
+    handler_id = logger.add(caplog.handler, format="{message}", level=0)
+    yield caplog
+    logger.remove(handler_id)
 
 
 @pytest.fixture

@@ -6,12 +6,13 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
-import logging
 import re
 import sysconfig
 import traceback
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from loguru import logger
 
 from shared import clock, fmt
 
@@ -24,7 +25,8 @@ if TYPE_CHECKING:
 
 __all__ = ("ErrorNotificationManager",)
 
-log = logging.getLogger("error_notification_manager")
+# Fixed name instead of the module path: `DiscordWebhookLogs` gives these records their own avatar.
+log = logger.patch(lambda record: record.update(name="error_notification_manager"))
 
 
 class ErrorNotificationManager:
@@ -117,7 +119,7 @@ class ErrorNotificationManager:
             This should showcase some information that can't be gotten from the error object directly, i.e.
             discord author information, guild where the error happened, some snowflakes, etc.
         """
-        log.error("⛔ Registering %s", error.__class__.__name__, exc_info=error)
+        log.opt(exception=error).error("⛔ Registering {}", error.__class__.__name__)
 
         traceback_string = self._shorten_re.sub(
             repl=lambda mo: self._shortenings[mo.group()],
@@ -127,7 +129,7 @@ class ErrorNotificationManager:
         async with self._lock:
             if self._most_recent and (elapsed := clock.utcnow() - self._most_recent) < self.cooldown:
                 remaining = (self.cooldown - elapsed).total_seconds()
-                log.debug("Waiting %.2f seconds to send the error.", remaining)
+                log.debug("Waiting {:.2f} seconds to send the error.", remaining)
                 await asyncio.sleep(remaining)
 
             self._most_recent = clock.utcnow()

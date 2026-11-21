@@ -7,7 +7,6 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import itertools
-import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -25,7 +24,6 @@ __all__ = (
     "RealTimeStatsPlayer",
     "SteamWebAPIClient",
 )
-log = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15)  # seconds, aiohttp's default is 5 minutes
 

@@ -11,11 +11,11 @@ References
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import orjson
+from loguru import logger
 
 from shared import errors
 
@@ -24,7 +24,6 @@ if TYPE_CHECKING:
 
 
 __all__ = ("OpenDotaClient",)
-log = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15)  # seconds, aiohttp's default is 5 minutes
 
@@ -73,5 +72,5 @@ class OpenDotaClient:
         * https://api.opendota.com/api/constants/items
         * https://raw.githubusercontent.com/odota/dotaconstants/master/build/items.json
         """
-        log.debug("🍋 Opendota Constants API: getting items.")
+        logger.debug("🍋 Opendota Constants API: getting items.")
         return await self._invoke("constants/items")

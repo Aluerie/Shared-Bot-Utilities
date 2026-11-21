@@ -14,7 +14,6 @@ References
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, NamedTuple, TypedDict
 
 from shared import errors, globs
@@ -26,9 +25,6 @@ __all__ = (
     "LANGUAGES",
     "translate",
 )
-
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
 
 
 LANGUAGES = {  # there are 109 languages

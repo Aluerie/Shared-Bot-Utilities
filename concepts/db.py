@@ -4,13 +4,13 @@
 
 from __future__ import annotations
 
-import logging
 import sys
 from typing import TYPE_CHECKING, Any, cast, override
 
 import asyncpg
 import click
 import orjson
+from loguru import logger
 
 
 async def create_pool(postgres_url: str, search_path: str) -> PoolTypedWithAny:
@@ -86,7 +86,6 @@ async def try_create_pool(
     is_test: bool,
 ) -> PoolTypedWithAny:
     """Create a database connection pool but with error handling."""
-    log = logging.getLogger(__name__)
     postgres_url = postgres_test if is_test else postgres_prod
     try:
         return await create_pool(postgres_url, search_path)
@@ -95,5 +94,5 @@ async def try_create_pool(
         # error message to terminal
         click.echo(msg, file=sys.stderr)
         # error message to logs
-        log.exception(msg)
+        logger.exception(msg)
         sys.exit(1)
