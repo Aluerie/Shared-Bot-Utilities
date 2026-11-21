@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -75,6 +75,55 @@ async def test_dota2com_retries_malformed_json(session: FakeSession) -> None:
     assert len(session.calls) == client.MAX_RETRY_ATTEMPTS
 
 
+async def test_dota2com_retries_until_success(session: FakeSession) -> None:
+    session.add(status=500).add(json={"result": {}}).add(text="<html>not json</html>")
+    session.add(json={"result": {"data": {"heroes": []}}})
+    client = dota2com.Dota2comClient(session=session)  # ty: ignore[invalid-argument-type]
+    assert await client.hero_list() == []
+    assert len(session.calls) == 4
+
+
+async def test_dota2com_gives_up_with_the_last_error_as_cause(session: FakeSession) -> None:
+    session.add(status=500)
+    client = dota2com.Dota2comClient(session=session)  # ty: ignore[invalid-argument-type]
+    with pytest.raises(errors.TooManyFailsError) as exc_info:
+        await client.hero_list()
+    assert isinstance(exc_info.value.__cause__, errors.ResponseNotOkError)
+
+
+async def test_dota2com_does_not_retry_bugs(session: FakeSession, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = dota2com.Dota2comClient(session=session)  # ty: ignore[invalid-argument-type]
+    attempts = 0
+
+    async def buggy_invoke(*_: object, **__: object) -> None:
+        nonlocal attempts
+        attempts += 1
+        raise KeyError
+
+    monkeypatch.setattr(client, "_invoke", buggy_invoke)
+    with pytest.raises(KeyError):
+        await client.hero_list()
+    assert attempts == 1
+
+
+@pytest.mark.parametrize(
+    ("response", "error"),
+    [
+        ({"status": 500}, errors.ResponseNotOkError),
+        ({"json": {"result": {}}}, errors.EmptyResponseError),
+    ],
+)
+async def test_dota2com_invoke_errors(
+    session: FakeSession,
+    response: dict[str, Any],
+    error: type[Exception],
+) -> None:
+    session.add(**response)
+    client = dota2com.Dota2comClient(session=session)  # ty: ignore[invalid-argument-type]
+    with pytest.raises(error):
+        await client._invoke("datafeed/herolist")
+
+
 # --- LOCAL API --------------------------------------------------------------------------------------------------------
 
 
@@ -110,6 +159,18 @@ async def test_local_api_errors_respond_to_user(
     client = local.LocalAPI(session, "api-key")  # ty: ignore[invalid-argument-type]
     with pytest.raises(errors.RespondWithError, match=message_part):
         await client.get_friend(1)
+
+
+async def test_local_api_accept_invite_is_a_post_with_the_query(session: FakeSession) -> None:
+    session.add(json={"id": 1, "name": "Streamer"})
+    client = local.LocalAPI(session, "api-key")  # ty: ignore[invalid-argument-type]
+    user = await client.post_accept_invite(friend_id=1, twitch_id="42")
+    assert (user.id, user.name) == (1, "Streamer")
+    method, url, kwargs = session.calls[0]
+    assert method == "POST"
+    assert url.endswith("/accept_invite/")
+    assert kwargs["params"] == {"friend_id": 1, "twitch_id": "42"}
+    assert kwargs["headers"] == {"X-API-Key": "api-key"}
 
 
 # --- 7TV --------------------------------------------------------------------------------------------------------------
