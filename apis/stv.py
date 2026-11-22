@@ -27,6 +27,9 @@ References
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
+import datetime as dt
 import re
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, NotRequired, TypedDict, override
 
@@ -78,6 +81,7 @@ __all__ = (
     "StvClient",
     "UnauthorizedError",
     "UnsatisfyingResultError",
+    "parse_token_claims",
 )
 
 
@@ -105,8 +109,8 @@ class UnauthorizedError(SevenTVErrorMixin, errors.RespondAndNotifyError):
     def __init__(self, data: dict[str, Any]) -> None:
         super().__init__(
             msg=(
-                "It seems bot's 7TV Bearer Token is expired. Irene, please, grab a new one via dev tools or "
-                "figure out how to make the bot automatically refresh it."
+                "It seems bot's 7TV Bearer Token is expired. 7TV sessions hard-expire after 30 days, "
+                "so log into 7tv.app as the bot, grab a new token via dev tools and submit it to the bot."
             ),
             response="Oops, 7TV logged me out; Irene needs to fix it (surely permanently this time)",
             data=data,
@@ -715,6 +719,55 @@ class EmoteSetInfo(NamedTuple):
     owner_id: str
 
 
+# --- TOKEN ------------------------------------------------------------------------------------------------------------
+
+
+class TokenClaims(NamedTuple):
+    """Claims of a 7TV session token (JWT) that are relevant to the bot.
+
+    Attributes
+    ----------
+    user_id
+        7TV user id of the account the token belongs to (JWT ``sub`` claim).
+    issued_at
+        When the session was created (JWT ``iat`` claim).
+    expires_at
+        When the session expires (JWT ``exp`` claim). 7TV sessions live for 30 days and can't be refreshed.
+    """
+
+    user_id: str
+    issued_at: dt.datetime
+    expires_at: dt.datetime
+
+
+def parse_token_claims(token: str) -> TokenClaims:
+    """Read the claims of a 7TV session token without verifying its signature.
+
+    The signature can't be verified on our side anyway (only 7TV knows the key);
+    this is only meant for reading the expiry date and the owner of a token we already trust.
+
+    Raises
+    ------
+    ValueError
+        The string is not a JWT or lacks the expected claims.
+    """
+    parts = token.removeprefix("Bearer ").strip().split(".")
+    if len(parts) != 3:  # header.payload.signature
+        msg = "7TV token is not a JWT (expected 3 dot-separated parts)."
+        raise ValueError(msg)
+    payload = parts[1] + "=" * (-len(parts[1]) % 4)
+    try:
+        claims = orjson.loads(base64.urlsafe_b64decode(payload))
+        return TokenClaims(
+            user_id=str(claims["sub"]),
+            issued_at=dt.datetime.fromtimestamp(claims["iat"], dt.UTC),
+            expires_at=dt.datetime.fromtimestamp(claims["exp"], dt.UTC),
+        )
+    except (binascii.Error, orjson.JSONDecodeError, KeyError, TypeError, OverflowError) as exc:
+        msg = "7TV token payload can't be decoded or lacks `sub`/`iat`/`exp` claims."
+        raise ValueError(msg) from exc
+
+
 # --- CLIENT -----------------------------------------------------------------------------------------------------------
 
 
@@ -745,7 +798,10 @@ class StvClient:
         bearer_token: str | None = None,
         session: ClientSession | None = None,
     ) -> None:
-        self._bearer_token: str | None = bearer_token
+        self._bearer_token: str | None = None
+        self.token_claims: TokenClaims | None = None
+        if bearer_token is not None:
+            self.set_bearer_token(bearer_token)
         self.user_id: str = bot_7tv_user_id
         self._session: ClientSession | None = session
         self._owns_session: bool = session is None
@@ -759,6 +815,23 @@ class StvClient:
         if self._session is None or (self._owns_session and self._session.closed):
             self._session = ClientSession()
         return self._session
+
+    def set_bearer_token(self, token: str) -> None:
+        """Replace the Bearer token used for authorized requests.
+
+        A token that isn't a readable JWT is still used, but `token_claims` is then None.
+        """
+        self._bearer_token = token.removeprefix("Bearer ").strip()
+        try:
+            self.token_claims = parse_token_claims(self._bearer_token)
+        except ValueError:
+            logger.warning("7TV Bearer token is not a readable JWT; its expiry date is unknown.")
+            self.token_claims = None
+
+    @property
+    def token_expires_at(self) -> dt.datetime | None:
+        """When the current Bearer token expires, if known."""
+        return self.token_claims.expires_at if self.token_claims else None
 
     async def close(self) -> None:
         """Close the session if the client created it itself."""
