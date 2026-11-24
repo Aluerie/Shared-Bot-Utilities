@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Shared utilities, packages, small API wrappers for my bots."
 readme = ".github/README.md"
 requires-python = ">=3.15"
-license = { file = ".github/LICENSE" }
+license = { file = "LICENSE" }
 # Runtime dependencies of `shared` itself.
 # The bots that use this repo as a git submodule must have these in their own `pyproject.toml` too.
 dependencies = [
