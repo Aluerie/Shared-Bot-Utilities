@@ -13,13 +13,13 @@ from enum import IntEnum, StrEnum
 from typing import Final
 
 __all__ = (
+    "BROWSER_USER_AGENT",
     "DIGITS",
-    "USER_AGENT",
     "Logo",
     "TwitchEmote",
 )
 
-USER_AGENT: Final = (
+BROWSER_USER_AGENT: Final = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36"
 )
 

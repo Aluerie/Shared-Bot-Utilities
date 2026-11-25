@@ -184,7 +184,7 @@ async def translate(
             "q": text,
         },
         headers={
-            "User-Agent": globs.USER_AGENT,
+            "User-Agent": globs.BROWSER_USER_AGENT,
         },
     ) as resp:
         if resp.status != 200:

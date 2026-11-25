@@ -132,7 +132,7 @@ class Dota2comClient:
         async with self.session.get(
             url=f"{BASE_URL}/{endpoint}",
             params=query_kwargs,
-            headers={"User-Agent": globs.USER_AGENT},
+            headers={"User-Agent": globs.BROWSER_USER_AGENT},
             timeout=REQUEST_TIMEOUT,
         ) as resp:
             url = str(resp.url.with_query(None))

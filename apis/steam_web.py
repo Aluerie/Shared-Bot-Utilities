@@ -158,7 +158,7 @@ class SteamWebAPIClient:
         async with self.session.get(
             url=f"https://api.steampowered.com/{endpoint}",
             params={"key": self.api_key, **query_kwargs},
-            headers={"User-Agent": globs.USER_AGENT},
+            headers={"User-Agent": globs.BROWSER_USER_AGENT},
             timeout=REQUEST_TIMEOUT,
         ) as resp:
             if resp.ok:
