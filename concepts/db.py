@@ -89,7 +89,7 @@ async def try_create_pool(
     postgres_url = postgres_test if is_test else postgres_prod
     try:
         return await create_pool(postgres_url, search_path)
-    except Exception:
+    except Exception:  # ruff: ignore[blind-except] any failure here is fatal, we log it and exit
         msg = "Could not set up PostgreSQL. Exiting."
         # error message to terminal
         click.echo(msg, file=sys.stderr)
