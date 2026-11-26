@@ -12,8 +12,19 @@ import click
 import orjson
 from loguru import logger
 
+from . import migrations
 
-async def create_pool(postgres_url: str, search_path: str, *, application_name: str) -> PoolTypedWithAny:
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+async def create_pool(
+    postgres_url: str,
+    search_path: str,
+    *,
+    application_name: str,
+    migrations_dir: Path | None = None,
+) -> PoolTypedWithAny:
     """Create a database connection pool.
 
     Parameters
@@ -24,6 +35,10 @@ async def create_pool(postgres_url: str, search_path: str, *, application_name: 
         Search path for `asyncpg.create_pool`'s server_settings.
     application_name: str
         Name the connections show in `pg_stat_activity`, so they can be told apart per bot.
+    migrations_dir: Path | None
+        The bot's folder of migration files. If given, the ones the database doesn't have yet are applied
+        to the first schema of `search_path` before the pool is returned; if one fails, the pool is closed
+        and the error raised.
     """
 
     async def init(con: asyncpg.Connection[asyncpg.Record]) -> None:
@@ -41,7 +56,7 @@ async def create_pool(postgres_url: str, search_path: str, *, application_name: 
             format="text",
         )
 
-    return cast(
+    pool = cast(
         "PoolTypedWithAny",
         await asyncpg.create_pool(
             dsn=postgres_url,
@@ -53,6 +68,13 @@ async def create_pool(postgres_url: str, search_path: str, *, application_name: 
             server_settings={"search_path": search_path, "application_name": application_name},
         ),
     )
+    if migrations_dir is not None:
+        try:
+            await migrations.apply(pool, migrations_dir, schema=search_path.split(",", maxsplit=1)[0].strip())
+        except BaseException:
+            await pool.close()
+            raise
+    return pool
 
 
 if TYPE_CHECKING:
@@ -87,13 +109,16 @@ async def try_create_pool(
     search_path: str,
     application_name: str,
     is_test: bool,
+    migrations_dir: Path | None = None,
 ) -> PoolTypedWithAny:
-    """Create a database connection pool but with error handling."""
+    """Create a database connection pool (and apply the migrations) but with error handling."""
     postgres_url = postgres_test if is_test else postgres_prod
     try:
-        return await create_pool(postgres_url, search_path, application_name=application_name)
+        return await create_pool(
+            postgres_url, search_path, application_name=application_name, migrations_dir=migrations_dir
+        )
     except Exception:  # any failure here is fatal, we log it and exit
-        msg = "Could not set up PostgreSQL. Exiting."
+        msg = "Could not set up PostgreSQL or apply the migrations. Exiting."
         # error message to terminal
         click.echo(msg, file=sys.stderr)
         # error message to logs
