@@ -21,7 +21,7 @@ At some point I realized that the `utils` folders in [@Aluerie/AluBot](<https://
 | `clock` | Datetime helpers: human-readable time differences and Discord timestamps. |
 | `fmt` | Text formatting: codeblocks, plurals, ordinals, pretty-printed mappings for embeds. |
 | `fuzzy` | Fuzzy string matching, based on RoboDanny's. |
-| `scheduler` | Persistent jobs (reminders, birthdays, periodic messages) in a PostgreSQL table, which it creates itself: times on the clocks of a timezone, RRULE repeats, retries, skipping occurrences that are too late, at-least-once delivery across restarts. |
+| `scheduler` | Persistent jobs (reminders, birthdays, periodic messages) in a PostgreSQL table, which it creates itself: times on the clocks of a timezone, RRULE repeats, retries, skipping occurrences that are too late, at-least-once delivery across restarts. How it all works: [docs/scheduler.md](../docs/scheduler.md). |
 | `gh` | Git helpers: latest commits with gitmoji titles, line counting. |
 | `translate` | Google Translate. |
 | `globs` | Global constants: user agent, emotes, logos, colours. |
