@@ -62,8 +62,9 @@ async def create_pool(
             dsn=postgres_url,
             init=init,
             command_timeout=300,
-            min_size=20,
-            max_size=20,
+            # a bot runs a handful of queries at a time; 2 stay open, more are opened on demand
+            min_size=2,
+            max_size=10,
             # statement_cache_size=0,
             server_settings={"search_path": search_path, "application_name": application_name},
         ),
@@ -103,16 +104,16 @@ if TYPE_CHECKING:
 
 
 async def try_create_pool(
-    postgres_prod: str,
-    postgres_test: str,
+    postgres_url: str,
     *,
     search_path: str,
     application_name: str,
-    is_test: bool,
     migrations_dir: Path | None = None,
 ) -> PoolTypedWithAny:
-    """Create a database connection pool (and apply the migrations) but with error handling."""
-    postgres_url = postgres_test if is_test else postgres_prod
+    """Create a database connection pool (and apply the migrations), or log the error and exit with code 1.
+
+    The non-zero exit code makes systemd count it as a failed start, which fails the deploy.
+    """
     try:
         return await create_pool(
             postgres_url, search_path, application_name=application_name, migrations_dir=migrations_dir
