@@ -513,23 +513,30 @@ can never get into the table, which matters because a single such row would make
 2. **ISO dates** `2026-12-03`, `2026-12-03 10:00`, `2026-12-03T10:00+03:00`. An explicit offset wins over the user's
    timezone (absolute); without one it's wall time in the user's zone. These are parsed by Python, never by `dateparser`,
    because `dateparser` with day-first order read `2026-12-03` as **12 March**.
-3. **Durations** `2h30m`, `in 2 hours`, `2 weeks and 3 days`. If they contain hours, minutes or seconds they're absolute
+3. **A timezone in the input** wins over the user's: `18:00 MSK`, `3pm EST`, `friday 10:00 Europe/Berlin`,
+   `9am UTC+3`. Abbreviations map to the zone people mean all year (`EST` → `America/New_York`, also in summer;
+   ambiguous ones to their usual meaning: `IST` is India, `CST` is US Central; `GMT` is UTC). Offsets become
+   `Etc/GMT` zones, whose sign IANA inverts (`UTC+3` is `Etc/GMT-3`); only whole hours work. The rest of the input is
+   then read on that zone's clocks, so `18:00 MSK` is a wall time in `Europe/Moscow`. Durations ignore zones:
+   `1h ist` isn't "1 hour, India", so in chat the word stays in the text.
+4. **Durations** `2h30m`, `in 2 hours`, `2 weeks and 3 days`. If they contain hours, minutes or seconds they're absolute
    ("in 2 hours" is 2 real hours even across a DST change); whole days and longer are wall time ("in 3 days" is the same
    clock time). The unit regex ends with `(?![a-z])` rather than `\b`, because `2h30m` has no word boundary between
    `h` and `3`.
-4. **Keywords** `eod`, `eow` (Friday), `eom`, `eoy` (all at 23:59), `tonight` (20:00).
-5. **Everything else** goes to `dateparser` ("tomorrow 3pm", "friday", "3 december 10:00"), with two fixes found by
+5. **Keywords** `eod`, `eow` (Friday), `eom`, `eoy` (all at 23:59), `tonight` (20:00).
+6. **Everything else** goes to `dateparser` ("tomorrow 3pm", "friday", "3 december 10:00"), with two fixes found by
    testing it: `next friday 3pm` returns nothing (so `next ` is dropped before weekdays), and a date without a time
    comes back at midnight (so the current time of day is kept instead).
 
 The result must be in the future and within 20 years.
 
-`split_time(text, ...)` is for chat, where time and text come in one string (`!remind tomorrow 3pm water the plants`).
+`split_time(text, ...)` (a leading `me` is skipped, for `!remind me ...`) is for chat, where time and text come in one string (`!remind tomorrow 3pm water the plants`).
 It grows the time word by word while it still parses, stops at the first word that breaks it, and treats `to`, `that`
 and `about` as separators: `!remind 1h to may the force be with you` keeps "may" out of the time.
 
-`describe(parsed, ...)` renders `Fri 27 Nov 2026, 15:00 (in 18 hours)` for places without Discord timestamps:
-slash command autocomplete and Twitch chat.
+`describe(parsed, ...)` renders `Fri 27 Nov 2026, 15:00 CET (in 18 hours)` for places without Discord timestamps:
+slash command autocomplete and Twitch chat. Clock times show on the clocks they were given for, so `18:00 MSK` is confirmed
+as `18:00 MSK`.
 
 ## 🔌 How the bots use it
 

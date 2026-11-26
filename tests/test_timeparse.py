@@ -64,8 +64,52 @@ def test_bad_times_are_refused(text: str) -> None:
 
 def test_describe() -> None:
     parsed = parse_time("tomorrow 3pm", now=NOW, timezone=BERLIN)
-    assert describe(parsed, now=NOW, timezone=BERLIN) == "Fri 27 Nov 2026, 15:00 (in 18 hours 30 minutes)"
-    assert describe(parse_time("1h", now=NOW), now=NOW).endswith("UTC (in 1 hour)")
+    assert describe(parsed, now=NOW, timezone=BERLIN) == "Fri 27 Nov 2026, 15:00 CET (in 18 hours 30 minutes)"
+    assert describe(parse_time("1h", now=NOW), now=NOW).endswith("20:30 UTC (in 1 hour)")
+
+
+# --- TIMEZONES IN THE INPUT -------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "zone", "local"),
+    [
+        ("18:00 MSK", "Europe/Moscow", dt.datetime(2026, 11, 27, 18, 0)),  # 22:30 in Moscow now: tomorrow
+        ("3pm est", "America/New_York", dt.datetime(2026, 11, 26, 15, 0)),  # 14:30 in New York now: later today
+        ("tomorrow 9am CET", "Europe/Berlin", dt.datetime(2026, 11, 27, 9, 0)),
+        ("friday 10:00 Europe/London", "Europe/London", dt.datetime(2026, 11, 27, 10, 0)),
+        ("9am utc+3", "Etc/GMT-3", dt.datetime(2026, 11, 27, 9, 0)),  # IANA's Etc/GMT signs are inverted
+        ("9am GMT-5", "Etc/GMT+5", dt.datetime(2026, 11, 27, 9, 0)),
+        ("18:00 UTC", "UTC", dt.datetime(2026, 11, 26, 18, 0) + dt.timedelta(days=1)),
+    ],
+)
+def test_timezone_in_the_input_wins(text: str, zone: str, local: dt.datetime) -> None:
+    parsed = parse_time(text, now=NOW, timezone=BERLIN)
+    assert parsed.when.timezone == zone
+    assert parsed.when.local == local
+
+
+def test_offsets_are_really_ahead_or_behind() -> None:
+    ahead = parse_time("9am utc+3", now=NOW, timezone=BERLIN)
+    assert ahead.moment == dt.datetime(2026, 11, 27, 6, 0, tzinfo=dt.UTC)
+    behind = parse_time("9am gmt-5", now=NOW, timezone=BERLIN)
+    assert behind.moment == dt.datetime(2026, 11, 27, 14, 0, tzinfo=dt.UTC)
+
+
+def test_describe_shows_the_zone_that_was_typed() -> None:
+    parsed = parse_time("18:00 MSK", now=NOW)
+    assert describe(parsed, now=NOW).startswith("Fri 27 Nov 2026, 18:00 MSK (in ")
+
+
+@pytest.mark.parametrize("text", ["9am utc+5:30", "9am utc+15"])
+def test_odd_offsets_are_refused(text: str) -> None:
+    with pytest.raises(errors.BadUserInputError, match="whole-hour"):
+        parse_time(text, now=NOW)
+
+
+def test_durations_ignore_timezones() -> None:
+    with pytest.raises(errors.BadUserInputError, match="only goes with a clock time"):
+        parse_time("1h ist", now=NOW)
 
 
 # --- SPLITTING CHAT INPUT ---------------------------------------------------------------------------------------------
@@ -82,6 +126,9 @@ def test_describe() -> None:
         ("eow to send the report", "eow", "send the report"),
         ("1h to may the force be with you", "1h", "may the force be with you"),
         ("2h30m that the pizza is ready", "2h30m", "the pizza is ready"),
+        ("18:00 MSK stretch", "18:00 MSK", "stretch"),
+        ("me 18:00 MSK stretch", "18:00 MSK", "stretch"),
+        ("1h ist cool", "1h", "ist cool"),
     ],
 )
 def test_split_time(text: str, time_text: str, rest: str) -> None:

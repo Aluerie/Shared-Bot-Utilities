@@ -13,6 +13,7 @@ Both kinds are `WallTime`s (absolute ones in UTC), ready for `shared.scheduler`.
 """
 
 import datetime as dt
+import functools
 import re
 import zoneinfo
 from dataclasses import dataclass
@@ -63,6 +64,54 @@ _NEXT_WEEKDAY: Final = re.compile(rf"\bnext\s+({'|'.join(_WEEKDAYS)})\b")
 _HAS_TIME: Final = re.compile(r"\d\s*(?:am|pm|a\.m\.|p\.m\.)|\d:\d|\b(?:noon|midnight|morning|evening|night)\b")
 END_OF_DAY: Final = dt.time(23, 59)
 TONIGHT: Final = dt.time(20, 0)
+
+TIMEZONE_ABBREVIATIONS: Final = {
+    # Abbreviations stand for the zone people mean all year: "EST" in July still means New York's time.
+    # Ambiguous ones go to their most common meaning (IST: India, CST: US Central), and GMT is taken as UTC.
+    "utc": "UTC",
+    "gmt": "UTC",
+    "wet": "Europe/Lisbon",
+    "west": "Europe/Lisbon",
+    "bst": "Europe/London",
+    "cet": "Europe/Berlin",
+    "cest": "Europe/Berlin",
+    "eet": "Europe/Kyiv",
+    "eest": "Europe/Kyiv",
+    "msk": "Europe/Moscow",
+    "ist": "Asia/Kolkata",
+    "jst": "Asia/Tokyo",
+    "kst": "Asia/Seoul",
+    "awst": "Australia/Perth",
+    "aest": "Australia/Sydney",
+    "aedt": "Australia/Sydney",
+    "nzst": "Pacific/Auckland",
+    "nzdt": "Pacific/Auckland",
+    "brt": "America/Sao_Paulo",
+    "et": "America/New_York",
+    "est": "America/New_York",
+    "edt": "America/New_York",
+    "ct": "America/Chicago",
+    "cst": "America/Chicago",
+    "cdt": "America/Chicago",
+    "mt": "America/Denver",
+    "mst": "America/Denver",
+    "mdt": "America/Denver",
+    "pt": "America/Los_Angeles",
+    "pst": "America/Los_Angeles",
+    "pdt": "America/Los_Angeles",
+    "akst": "America/Anchorage",
+    "akdt": "America/Anchorage",
+    "hst": "Pacific/Honolulu",
+}
+"""Timezone abbreviations users may add to a time ("18:00 MSK"), and the IANA zones they stand for."""
+_ZONE_ABBREVIATION: Final = re.compile(
+    r"(?<![\w/])(" + "|".join(sorted(TIMEZONE_ABBREVIATIONS, key=len, reverse=True)) + r")(?![\w/])"
+)
+_ZONE_OFFSET: Final = re.compile(
+    r"(?<![\w/])(?:utc|gmt)\s*(?P<sign>[+-])\s*(?P<hours>\d{1,2})(?::?(?P<minutes>\d{2}))?(?!\w)"
+)
+_ZONE_KEY: Final = re.compile(r"(?<![\w/])[a-z]+(?:/[a-z0-9_+-]+)+(?![\w/])")
+MAX_OFFSET_HOURS: Final = 14
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +173,42 @@ def _end_of(keyword: str, local_now: dt.datetime) -> dt.datetime | None:
     return dt.datetime.combine(date, END_OF_DAY)
 
 
+@functools.cache
+def _iana_keys() -> dict[str, str]:
+    """IANA timezone keys by their lowercase form, to find "europe/berlin" typed in any case."""
+    return {key.lower(): key for key in zoneinfo.available_timezones()}
+
+
+def _extract_timezone(text: str) -> tuple[str, str] | None:
+    """Find a timezone in lowercase input: an offset ("utc+3"), an IANA key ("europe/berlin") or "msk"-like names.
+
+    Returns
+    -------
+    tuple[str, str] | None
+        The IANA key of the zone and the text without it, or `None` if the text names no zone.
+
+    Raises
+    ------
+    errors.BadUserInputError
+        For offsets that aren't whole hours or are out of range.
+    """
+    if match := _ZONE_OFFSET.search(text):
+        hours, minutes = int(match["hours"]), int(match["minutes"] or 0)
+        if minutes or hours > MAX_OFFSET_HOURS:
+            msg = 'Only whole-hour offsets like "UTC+3" work; for others name the zone, e.g. "IST" or "Asia/Kolkata".'
+            raise errors.BadUserInputError(msg)
+        # IANA's "Etc/GMT" zones have the sign the other way around: UTC+3 is "Etc/GMT-3"
+        zone = "UTC" if hours == 0 else f"Etc/GMT{'-' if match['sign'] == '+' else '+'}{hours}"
+    elif (match := _ZONE_KEY.search(text)) and (key := _iana_keys().get(match[0])) is not None:
+        zone = key
+    elif match := _ZONE_ABBREVIATION.search(text):
+        zone = TIMEZONE_ABBREVIATIONS[match[1]]
+    else:
+        return None
+    rest = " ".join((text[: match.start()] + " " + text[match.end() :]).split())
+    return zone, rest
+
+
 def _parse_iso(text: str) -> dt.datetime | dt.date | None:
     try:
         return dt.date.fromisoformat(text) if len(text) == 10 else dt.datetime.fromisoformat(text)
@@ -149,6 +234,16 @@ def _parse(text: str, *, now: dt.datetime, timezone: str) -> ParsedTime:
         if iso.tzinfo is not None:  # an explicit offset wins over the user's timezone
             return _absolute(iso)
         return _wall(iso, timezone)
+
+    if (found := _extract_timezone(lowered)) is not None:
+        zone, rest = found
+        if not rest or _parse_duration(rest) is not None:
+            # "1h ist": durations don't depend on a timezone, so the word is something else
+            msg = f'I couldn\'t understand the time {raw!r}: a timezone only goes with a clock time, like "18:00 MSK".'
+            raise errors.BadUserInputError(msg)
+        # a zone in the input wins over the user's timezone: "18:00 MSK" is 18:00 on Moscow's clocks
+        timezone, lowered = zone, rest
+        local_now = now.astimezone(zoneinfo.ZoneInfo(timezone)).replace(tzinfo=None)
 
     if (delta := _parse_duration(lowered)) is not None:
         units = {unit for unit in _UNITS if getattr(delta, unit)}
@@ -196,6 +291,8 @@ def parse_time(text: str, *, now: dt.datetime, timezone: str = UTC) -> ParsedTim
         The user's input: a duration ("2h30m", "in 3 days"), a keyword ("eod", "eow", "eom", "eoy", "tonight"),
         an ISO date/time (an offset in it wins over `timezone`), a Discord timestamp, or anything
         ``dateparser`` understands ("tomorrow 3pm", "friday", "3 december 10:00"). Dates are day-first.
+        A clock time can name its timezone, which then wins over `timezone`: "18:00 MSK", "3pm EST",
+        "friday 10:00 Europe/Berlin", "9am UTC+3".
     now
         The current moment (aware).
     timezone
@@ -245,6 +342,8 @@ def split_time(text: str, *, now: dt.datetime, timezone: str = UTC) -> tuple[Par
         If the input doesn't start with a time in the future.
     """
     words = text.split()
+    if words and words[0].lower() == "me":  # "!remind me 18:00 MSK ..."
+        words = words[1:]
     best: tuple[ParsedTime, int] | None = None
     first_error: errors.BadUserInputError | None = None
     for count in range(1, min(len(words), MAX_TIME_WORDS) + 1):
@@ -273,13 +372,16 @@ def split_time(text: str, *, now: dt.datetime, timezone: str = UTC) -> tuple[Par
 def describe(parsed: ParsedTime, *, now: dt.datetime, timezone: str = UTC) -> str:
     """Describe a parsed time in plain text (for places without Discord timestamps, like autocomplete or chat).
 
+    Clock times are shown on the clocks they were given for (the user's, or the zone typed in, like "18:00 MSK");
+    absolute times on the user's clocks.
+
     Returns
     -------
     str
-        Like "Fri 27 Nov 2026, 15:00 (in 18 hours)", in the user's timezone.
+        Like "Fri 27 Nov 2026, 15:00 CET (in 18 hours)".
     """
-    local = parsed.moment.astimezone(zoneinfo.ZoneInfo(timezone))
+    shown = timezone if parsed.when.is_absolute else parsed.when.timezone
+    local = parsed.moment.astimezone(zoneinfo.ZoneInfo(shown))
     relative = clock.human_datetime_diff(parsed.moment, relative_to=now, max_units=2)
     when = "in " + relative if parsed.moment > now else relative + " ago"
-    zone = " UTC" if timezone == UTC else ""
-    return f"{local:%a %d %b %Y, %H:%M}{zone} ({when})"
+    return f"{local:%a %d %b %Y, %H:%M %Z} ({when})"
