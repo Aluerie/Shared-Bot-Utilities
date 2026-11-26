@@ -21,9 +21,11 @@ At some point I realized that the `utils` folders in [@Aluerie/AluBot](<https://
 | `clock` | Datetime helpers: human-readable time differences and Discord timestamps. |
 | `fmt` | Text formatting: codeblocks, plurals, ordinals, pretty-printed mappings for embeds. |
 | `fuzzy` | Fuzzy string matching, based on RoboDanny's. |
+| `scheduler` | Persistent jobs (reminders, birthdays, periodic messages) in a PostgreSQL table, which it creates itself: times on the clocks of a timezone, RRULE repeats, retries, skipping occurrences that are too late, at-least-once delivery across restarts. |
 | `gh` | Git helpers: latest commits with gitmoji titles, line counting. |
 | `translate` | Google Translate. |
 | `globs` | Global constants: user agent, emotes, logos, colours. |
+| `timeparse` | Times that users type in ("2h30m", "tomorrow 3pm", "eow", ISO, Discord timestamps), understood in their timezone, and splitting a time from the text of a chat message. |
 | `systemd` | `sd_notify` and `watchdog_loop` for `Type=notify` units with `WatchdogSec=`, and `is_systemd_service` to tell prod (VPS) from a run at home. |
 | `ut` | Everything else: the `MISSING` sentinel, `measure_time`, `run` (uvloop on Linux). |
 

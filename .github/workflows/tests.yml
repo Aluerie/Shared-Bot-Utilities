@@ -13,6 +13,19 @@ concurrency:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    services:
+      # for the scheduler's integration tests; the same major version as on the VPS
+      postgres:
+        image: postgres:19
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         # The code imports itself as `shared.*`, so it has to live in a folder named `shared`.
@@ -32,3 +45,5 @@ jobs:
 
       - name: Run tests
         run: uv run pytest
+        env:
+          SHARED_TEST_POSTGRES: postgresql://postgres:postgres@localhost:5432/postgres

@@ -11,6 +11,7 @@ dependencies = [
     "aiohttp",
     "asyncpg",
     "click",
+    "dateparser>=1.5.1",
     "discord-py",
     "loguru>=0.8.0",
     "lru-dict",
@@ -18,6 +19,7 @@ dependencies = [
     "pygit2",
     "python-dateutil",
     "steamio",
+    "tzdata>=2026.6",
     "uvloop ; sys_platform == 'linux'",
 ]
 
