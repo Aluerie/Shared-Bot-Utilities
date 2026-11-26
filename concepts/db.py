@@ -13,7 +13,7 @@ import orjson
 from loguru import logger
 
 
-async def create_pool(postgres_url: str, search_path: str) -> PoolTypedWithAny:
+async def create_pool(postgres_url: str, search_path: str, *, application_name: str) -> PoolTypedWithAny:
     """Create a database connection pool.
 
     Parameters
@@ -22,6 +22,8 @@ async def create_pool(postgres_url: str, search_path: str) -> PoolTypedWithAny:
         Postgresql URL to use for connection.
     search_path: str
         Search path for `asyncpg.create_pool`'s server_settings.
+    application_name: str
+        Name the connections show in `pg_stat_activity`, so they can be told apart per bot.
     """
 
     async def init(con: asyncpg.Connection[asyncpg.Record]) -> None:
@@ -48,7 +50,7 @@ async def create_pool(postgres_url: str, search_path: str) -> PoolTypedWithAny:
             min_size=20,
             max_size=20,
             # statement_cache_size=0,
-            server_settings={"search_path": search_path},
+            server_settings={"search_path": search_path, "application_name": application_name},
         ),
     )
 
@@ -83,12 +85,13 @@ async def try_create_pool(
     postgres_test: str,
     *,
     search_path: str,
+    application_name: str,
     is_test: bool,
 ) -> PoolTypedWithAny:
     """Create a database connection pool but with error handling."""
     postgres_url = postgres_test if is_test else postgres_prod
     try:
-        return await create_pool(postgres_url, search_path)
+        return await create_pool(postgres_url, search_path, application_name=application_name)
     except Exception:  # any failure here is fatal, we log it and exit
         msg = "Could not set up PostgreSQL. Exiting."
         # error message to terminal
