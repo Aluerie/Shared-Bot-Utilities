@@ -37,21 +37,33 @@ async def test_measure_time_logs(caplog: pytest.LogCaptureFixture) -> None:
     assert "async block PT" in caplog.text
 
 
+def commit_info(title: str) -> gh.CommitInfo:
+    return gh.CommitInfo(
+        repo=None,  # ty: ignore[invalid-argument-type]
+        id=None,  # ty: ignore[invalid-argument-type]
+        title=title,
+        short_sha2="abc1234",
+        utc_dt=None,  # ty: ignore[invalid-argument-type]
+        tz=None,  # ty: ignore[invalid-argument-type]
+    )
+
+
 def test_emojified_title() -> None:
-    def title(short_title: str) -> str:
-        info = gh.CommitInfo(
-            repo=None,  # ty: ignore[invalid-argument-type]
-            id=None,  # ty: ignore[invalid-argument-type]
-            short_title=short_title,
-            short_sha2="abc1234",
-            utc_dt=None,  # ty: ignore[invalid-argument-type]
-            tz=None,  # ty: ignore[invalid-argument-type]
-        )
-        return info.emojified_title
+    def title(text: str) -> str:
+        return commit_info(text).emojified_title
 
     assert title(":bug: Fix it") == "🐛 Fix it"
     assert title(":not_a_gitmoji: Hm") == ":not_a_gitmoji: Hm"
     assert title("No emoji :bug:") == "No emoji :bug:"  # only at the start
+
+
+def test_short_and_full_titles() -> None:
+    long_title = ":recycle: " + "x" * 60
+    info = commit_info(long_title)
+    assert info.short_title == long_title[0:50] + "..."
+    assert info.emojified_title == "♻️ " + "x" * 40 + "..."
+    assert info.emojified_full_title == "♻️ " + "x" * 60
+    assert commit_info("Short").short_title == "Short"
 
 
 def test_count_lines(tmp_path: Path) -> None:

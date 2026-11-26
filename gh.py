@@ -15,6 +15,7 @@ from pygit2.enums import SortMode
 
 __all__ = (
     "count_lines",
+    "emojify",
     "get_last_commit",
     "get_latest_commits",
 )
@@ -105,16 +106,34 @@ GITMOJI_MAPPING = {
 }
 
 
+def emojify(title: str) -> str:
+    """Replace a leading gitmoji code like ":tada:" in a commit title with its unicode emoji.
+
+    Unknown codes, and codes anywhere but at the start, are left as they are.
+    """
+    return re.sub(
+        pattern=r"^(?P<emoji_code>:[\w_-]+:)",
+        repl=lambda mo: GITMOJI_MAPPING.get(mo.group("emoji_code"), mo.group("emoji_code")),
+        string=title,
+    )
+
+
 @dataclass
 class CommitInfo:
     """Commit Information dataclass."""
 
     repo: pygit2.repository.Repository
     id: pygit2.Oid
-    short_title: str
+    title: str
+    """The commit message's first line, in full."""
     short_sha2: str
     utc_dt: dt.datetime
     tz: dt.timezone
+
+    @property
+    def short_title(self) -> str:
+        """The commit message's first line, cut to 50 characters plus "..." when it's longer."""
+        return self.title[0:50] + "..." if len(self.title) > 50 else self.title
 
     @property
     def emojified_title(self) -> str:
@@ -127,11 +146,15 @@ class CommitInfo:
         --------
         Commit's title: ':tada: Testing' -> `.emojified_title`: '🎉 Testing'
         """
-        return re.sub(
-            pattern=r"^(?P<emoji_code>:[\w_-]+:)",
-            repl=lambda mo: GITMOJI_MAPPING.get(mo.group("emoji_code"), mo.group("emoji_code")),
-            string=self.short_title,
-        )
+        return emojify(self.short_title)
+
+    @property
+    def emojified_full_title(self) -> str:
+        """Emojified commit's full title: the first line of its message, never cut.
+
+        A leading ":some_emoji_name:" is replaced with the corresponding unicode character (from gitmojis).
+        """
+        return emojify(self.title)
 
     @property
     def dt_as_tz(self) -> dt.datetime:
@@ -149,11 +172,11 @@ class CommitInfo:
 
 def get_commit_info(repo: pygit2.repository.Repository, commit: pygit2.Commit) -> CommitInfo:
     """Get commit's `CommitInfo`."""
-    short, _, _ = commit.message.partition("\n")
+    title, _, _ = commit.message.partition("\n")
     return CommitInfo(
         repo=repo,
         id=commit.id,
-        short_title=short[0:50] + "..." if len(short) > 50 else short,
+        title=title,
         short_sha2=str(commit.id)[0:7],
         utc_dt=dt.datetime.fromtimestamp(commit.commit_time, dt.UTC),
         tz=dt.timezone(dt.timedelta(minutes=commit.commit_time_offset)),
