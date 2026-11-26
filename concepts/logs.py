@@ -4,7 +4,8 @@
 
 All our own code logs with `loguru`. Libraries (discord.py, twitchio, steam.py, aiohttp, ...) still use the
 standard `logging` module, so `InterceptHandler` re-routes their records into loguru, and everything ends up
-in the same sinks (console, rotating file, Discord webhook).
+in the same sinks (console and Discord webhook).
+In production the console output goes to the systemd journal (or a container's log), so there is no log file.
 """
 
 from __future__ import annotations
@@ -13,7 +14,6 @@ import logging
 import platform
 import sys
 from contextlib import contextmanager
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, override
 
 from loguru import logger
@@ -29,15 +29,13 @@ __all__ = (
     "setup_logging",
 )
 
-_COLUMNS: Final = "{level.icon} {level: <8.8} {name: <30} {line: <4} {function: <35} {message}"
-FILE_FORMAT: Final = "{time:HH:mm:ss DD/MM!UTC} " + _COLUMNS
 CONSOLE_FORMAT: Final = (
     "<white><bold>{time:HH:mm:ss DD/MM!UTC}</bold></white> {level.icon} <level>{level: <8.8}</level> "
     "<magenta>{name: <30}</magenta> <light-green>{line: <4}</light-green> <cyan>{function: <35}</cyan> {message}"
 )
 # Level name -> (colour, icon). Loguru's built-in levels, from the most verbose:
 # TRACE (5), DEBUG (10), INFO (20), SUCCESS (25), WARNING (30), ERROR (40), CRITICAL (50).
-# Icons are shown in the console, the file and the Discord webhook. They are all double-width emojis
+# Icons are shown in the console and the Discord webhook. They are all double-width emojis
 # without the `U+FE0F` variation selector (unlike the usual info/warning sign emojis),
 # so the columns stay aligned in any terminal.
 LEVELS: Final[dict[str, tuple[str, str]]] = {
@@ -93,7 +91,6 @@ def prefixed_logger(prefix: str) -> Logger:
 def setup_logging(
     *,
     starting_up_art: str,
-    filename: str,
     level: int | str = logging.INFO,
 ) -> Generator[None, Any, Any]:
     """Set up logging.
@@ -102,10 +99,8 @@ def setup_logging(
     ----------
     starting_up_art
         Text that is logged on start-up, so restarts are noticeable in the logs.
-    filename
-        Name of the log file in the ``.temp`` folder.
     level
-        Minimum level for the console and file sinks; libraries' standard `logging` records below it
+        Minimum level for the console sink; libraries' standard `logging` records below it
         are dropped too. Debug logs of the libraries show up when it is ``DEBUG``.
         Loguru-only level names such as ``"TRACE"`` or ``"SUCCESS"`` work too.
     """
@@ -122,18 +117,6 @@ def setup_logging(
     try:
         # `diagnose=False`: variable values in tracebacks could leak tokens/secrets into the logs.
         logger.add(sys.stderr, level=level, format=CONSOLE_FORMAT, backtrace=True, diagnose=False)
-
-        Path(".temp/").mkdir(parents=True, exist_ok=True)
-        logger.add(
-            f".temp/{filename}",
-            level=level,
-            format=FILE_FORMAT,
-            encoding="utf-8",
-            rotation="7 MB",
-            retention=2,  # Keep 2 rotated files
-            backtrace=True,
-            diagnose=False,
-        )
 
         if platform.system() == "Linux":
             # so start-ups in logs are way more noticeable
