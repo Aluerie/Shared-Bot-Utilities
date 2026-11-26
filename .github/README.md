@@ -14,7 +14,7 @@ At some point I realized that the `utils` folders in [@Aluerie/AluBot](<https://
 | Module | What it does |
 | --- | --- |
 | `errors` | The exception hierarchy and the `Policy` that tells error handlers whether to respond to the user and/or notify developers. |
-| `concepts` | Building blocks for the bots: `BotBase`, the error notification manager, a `tasks.loop` subclass with error notifications, logging setup, the Discord webhook log mirror and the database pool. |
+| `concepts` | Building blocks for the bots: `BotBase`, the error notification manager, a `tasks.loop` subclass with error notifications, logging setup, the Discord webhook log mirror, the database pool, and `migrations`: numbered SQL files in a bot's `migrations/` folder, applied once each, in order, when the bot starts. |
 | `apis` | Small async clients: Steam Web API, dota2.com datafeed, OpenDota, Stratz, 7TV, and the local API of my Dota2Bot. |
 | `typings` | `TypedDict` schemas of those APIs' responses. |
 | `cache` | `@cache` for async functions (LRU, timed or unlimited) and `ExpiringCache`. |
