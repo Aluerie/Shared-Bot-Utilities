@@ -26,7 +26,6 @@ At some point I realized that the `utils` folders in [@Aluerie/AluBot](<https://
 | `globs` | Global constants: user agent, emotes, logos, colours. |
 | `systemd` | `sd_notify` and `watchdog_loop` for `Type=notify` units with `WatchdogSec=`, and `is_systemd_service` to tell prod (VPS) from a run at home. |
 | `ut` | Everything else: the `MISSING` sentinel, `measure_time`, `run` (uvloop on Linux). |
-| `scripts/notify_failure.sh` | Posts a throttled Discord webhook alert when a systemd service crashes; the bots' units run it as `ExecStopPost=`. |
 
 ## Using it in a bot
 
