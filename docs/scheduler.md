@@ -131,7 +131,7 @@ at that moment.
 ```python
 @dataclass(frozen=True, slots=True)
 class WallTime:
-    local: dt.datetime   # naive: what the clocks show
+    local: dt.datetime  # naive: what the clocks show
     timezone: str = UTC  # IANA key; "UTC" makes it absolute
 ```
 
@@ -164,7 +164,7 @@ The database decides when jobs fire, so Python must show the same moment. `resol
 ```python
 first = local.replace(tzinfo=zone, fold=0)
 second = local.replace(tzinfo=zone, fold=1)
-if first.utcoffset() == second.utcoffset():   # a normal time
+if first.utcoffset() == second.utcoffset():  # a normal time
     return first.astimezone(dt.UTC)
 is_gap = first.astimezone(dt.UTC).astimezone(zone).replace(tzinfo=None) != local
 return (first if is_gap else second).astimezone(dt.UTC)
@@ -269,9 +269,9 @@ the standard way to get a unique, typed, picklable sentinel.
 ```python
 while not self._closing:
     self._wake.clear()
-    await self._poll()                    # claim jobs due within the next minute
+    await self._poll()  # claim jobs due within the next minute
     async with asyncio.timeout(poll_interval):
-        await self._wake.wait()           # sleep up to 30 s, or until woken
+        await self._wake.wait()  # sleep up to 30 s, or until woken
 ```
 
 ### 🤔 Why poll at all?
