@@ -26,6 +26,7 @@ At some point I realized that the `utils` folders in [@Aluerie/AluBot](<https://
 | `translate` | Google Translate. |
 | `globs` | Global constants: user agent, emotes, logos, colours. |
 | `timeparse` | Times that users type in ("2h30m", "tomorrow 3pm", "eow", ISO, Discord timestamps), understood in their timezone, and splitting a time from the text of a chat message. |
+| `sqlcheck` | For tests: finds the SQL string literals in a bot's source and prepares each one in a throwaway database built from the bot's migrations, so a wrong table or column fails CI instead of prod. |
 | `systemd` | `sd_notify` and `watchdog_loop` for `Type=notify` units with `WatchdogSec=`, and `is_systemd_service` to tell prod (VPS) from a run at home. |
 | `ut` | Everything else: the `MISSING` sentinel, `measure_time`, `run` (uvloop on Linux). |
 
