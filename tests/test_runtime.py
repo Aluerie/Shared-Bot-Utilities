@@ -80,11 +80,7 @@ async def test_watchdog_loop_touches_the_health_file_only_once_ready(
 def test_freeze_detector_exits_when_the_loop_stops_ticking(monkeypatch: pytest.MonkeyPatch) -> None:
     exits: list[int] = []
 
-    def fake_exit(code: int) -> None:
-        exits.append(code)
-        raise SystemExit  # ends the detector's thread instead of the test process
-
-    monkeypatch.setattr(runtime.os, "_exit", fake_exit)
+    monkeypatch.setattr(runtime.os, "_exit", exits.append)  # records instead of ending the test process
     monkeypatch.setattr(runtime.faulthandler, "dump_traceback", lambda **_: None)
     monkeypatch.setattr(runtime, "TICK_SECONDS", 0.01)
     monkeypatch.setattr(runtime, "FREEZE_SECONDS", 0.05)

@@ -98,6 +98,7 @@ def _watch_for_freezes() -> None:
             logger.critical("The event loop has been stuck for {:.0f} s. Dumping the stacks and exiting.", stuck_for)
             faulthandler.dump_traceback(all_threads=True)
             os._exit(FROZEN_EXIT_CODE)
+            return  # only reached when a test replaces `os._exit`
 
 
 async def watchdog_loop() -> None:
