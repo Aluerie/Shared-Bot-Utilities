@@ -8,9 +8,11 @@ into a Discord webhook channel.
 
 import asyncio
 import datetime as dt
+import sys
 import traceback
 from typing import TYPE_CHECKING, ClassVar, Final
 
+import aiohttp
 import discord
 from discord.utils import MISSING
 from loguru import logger
@@ -187,7 +189,11 @@ class DiscordWebhookLogs:
                 await asyncio.sleep(total_seconds)
 
             self._most_recent = clock.utcnow()
+            # Printed, not logged: a logged error would be mirrored too, and fail the same way.
             try:
                 await self.send_log_record(record)
+            except (aiohttp.ClientError, TimeoutError) as error:
+                # Expected now and then (e.g. the HTTP session closing during a shutdown), so one line is enough.
+                print(f"Couldn't mirror a log record to Discord: {type(error).__name__}: {error}", file=sys.stderr)  # ruff: ignore[print]
             except Exception:  # ruff: ignore[blind-except]
                 traceback.print_exc()
