@@ -16,6 +16,7 @@ __all__ = (
     "HandlerSpec",
     "Job",
     "JobData",
+    "JobRun",
     "Outcome",
     "Recur",
     "Reschedule",
@@ -63,6 +64,8 @@ class Job[DataT: JobData = JobData]:
         If set, the job fires at this moment instead of `due_at`: a retry after a failure or `Scheduler.run_now`.
     claimed_at
         When the scheduler claimed the job to run it; `None` while it's waiting.
+    paused_at
+        When the job was paused (`Scheduler.pause`); `None` unless it's paused. Paused jobs don't fire.
     fired_at
         When the job's handler was called, for jobs passed to handlers; `None` otherwise.
     """
@@ -81,6 +84,7 @@ class Job[DataT: JobData = JobData]:
     last_error: str | None = None
     retry_at: dt.datetime | None = None
     claimed_at: dt.datetime | None = None
+    paused_at: dt.datetime | None = None
     fired_at: dt.datetime | None = field(default=None, compare=False)
 
     @classmethod
@@ -101,7 +105,13 @@ class Job[DataT: JobData = JobData]:
             last_error=row["last_error"],
             retry_at=row["retry_at"] and row["retry_at"].astimezone(dt.UTC),
             claimed_at=row["claimed_at"],
+            paused_at=row["paused_at"] and row["paused_at"].astimezone(dt.UTC),
         )
+
+    @property
+    def is_paused(self) -> bool:
+        """Whether the job is paused."""
+        return self.paused_at is not None
 
     @property
     def fire_at(self) -> dt.datetime:
@@ -113,6 +123,71 @@ class Job[DataT: JobData = JobData]:
         """How late the handler was called compared to `due_at`. Zero for jobs that aren't firing."""
         if self.fired_at is None:
             return dt.timedelta()
+        return max(self.fired_at - self.due_at, dt.timedelta())
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class JobRun:
+    """A past run of a job (or a skipped occurrence), from the ``scheduled_job_runs`` history.
+
+    Attributes
+    ----------
+    job_id
+        ID of the job; the job itself may be gone.
+    kind
+        The job's kind.
+    key
+        The job's key, if any.
+    user_id
+        The job's user, if any.
+    guild_id
+        The job's guild, if any.
+    due_at
+        When the occurrence was due.
+    fired_at
+        When the handler was called (or the occurrence was skipped).
+    finished_at
+        When the run was over.
+    attempt
+        Which try of the occurrence this was, 1 for the first.
+    outcome
+        "done", "rescheduled", "stopped", "skipped" (too late), "failed" (retried later) or "gave_up".
+    error
+        Traceback, for "failed" and "gave_up".
+    """
+
+    job_id: int
+    kind: str
+    key: str | None
+    user_id: int | None
+    guild_id: int | None
+    due_at: dt.datetime
+    fired_at: dt.datetime
+    finished_at: dt.datetime
+    attempt: int
+    outcome: str
+    error: str | None
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any]) -> Self:
+        """Make a run from a ``scheduled_job_runs`` row."""
+        return cls(
+            job_id=row["job_id"],
+            kind=row["kind"],
+            key=row["key"],
+            user_id=row["user_id"],
+            guild_id=row["guild_id"],
+            due_at=row["due_at"].astimezone(dt.UTC),
+            fired_at=row["fired_at"].astimezone(dt.UTC),
+            finished_at=row["finished_at"].astimezone(dt.UTC),
+            attempt=row["attempt"],
+            outcome=row["outcome"],
+            error=row["error"],
+        )
+
+    @property
+    def lateness(self) -> dt.timedelta:
+        """How late the run started compared to when the occurrence was due."""
         return max(self.fired_at - self.due_at, dt.timedelta())
 
 

@@ -9,7 +9,8 @@ import zoneinfo
 import pytest
 
 from shared import errors
-from shared.timeparse import describe, parse_time, split_time
+from shared.scheduler import WallTime
+from shared.timeparse import describe, describe_rule, parse_time, split_time
 
 BERLIN = "Europe/Berlin"
 NOW = dt.datetime(2026, 11, 26, 19, 30, tzinfo=dt.UTC)
@@ -145,3 +146,76 @@ def test_split_time_needs_a_time_first() -> None:
 def test_split_time_reports_past_times() -> None:
     with pytest.raises(errors.BadUserInputError, match="in the past"):
         split_time("yesterday stretch", now=NOW, timezone=BERLIN)
+
+
+# --- REPEATS ----------------------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "rule", "local"),
+    [
+        ("every day 9am", "FREQ=DAILY", dt.datetime(2026, 11, 27, 9, 0)),
+        ("daily at 18:00", "FREQ=DAILY", dt.datetime(2026, 11, 27, 18, 0)),
+        ("every weekday 8:30", "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", dt.datetime(2026, 11, 27, 8, 30)),
+        ("every weekend 11am", "FREQ=WEEKLY;BYDAY=SA,SU", dt.datetime(2026, 11, 28, 11, 0)),
+        ("every friday 18:00", "FREQ=WEEKLY;BYDAY=FR", dt.datetime(2026, 11, 27, 18, 0)),
+        ("every mon and thu 20:00", "FREQ=WEEKLY;BYDAY=MO,TH", dt.datetime(2026, 11, 30, 20, 0)),
+        ("every thursdays, mondays at 8pm", "FREQ=WEEKLY;BYDAY=MO,TH", dt.datetime(2026, 11, 30, 20, 0)),
+        ("every 2 weeks on friday 18:00", "FREQ=WEEKLY;INTERVAL=2;BYDAY=FR", dt.datetime(2026, 11, 27, 18, 0)),
+        ("every month on the 15th 10:00", "FREQ=MONTHLY;BYMONTHDAY=15", dt.datetime(2026, 12, 15, 10, 0)),
+        ("every day noon", "FREQ=DAILY", dt.datetime(2026, 11, 27, 12, 0)),
+    ],
+)
+def test_repeats(text: str, rule: str, local: dt.datetime) -> None:
+    parsed = parse_time(text, now=NOW, timezone=BERLIN)
+    assert parsed.rule == rule
+    assert parsed.when == WallTime(local, BERLIN)
+
+
+def test_hourly_repeats_are_absolute() -> None:
+    parsed = parse_time("every 3 hours", now=NOW, timezone=BERLIN)
+    assert parsed.rule == "FREQ=HOURLY;INTERVAL=3"
+    assert parsed.is_absolute
+    assert parsed.moment == NOW + dt.timedelta(hours=3)
+
+
+def test_repeats_with_a_timezone() -> None:
+    parsed = parse_time("every friday 18:00 MSK", now=NOW, timezone=BERLIN)
+    assert parsed.when == WallTime(dt.datetime(2026, 11, 27, 18, 0), "Europe/Moscow")
+
+
+@pytest.mark.parametrize(
+    ("text", "error"),
+    [
+        ("every 5 minutes", "at most every hour"),
+        ("every blah", "couldn't understand the repeat"),
+        ("every day 25:00", "time of day"),
+        ("every 2 hours at 9am", "can't have a time of day"),
+    ],
+)
+def test_bad_repeats(text: str, error: str) -> None:
+    with pytest.raises(errors.BadUserInputError, match=error):
+        parse_time(text, now=NOW, timezone=BERLIN)
+
+
+@pytest.mark.parametrize(
+    ("rule", "words"),
+    [
+        ("FREQ=DAILY", "every day"),
+        ("FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", "every weekday"),
+        ("FREQ=WEEKLY;BYDAY=MO,TH", "every Mon and Thu"),
+        ("FREQ=WEEKLY;INTERVAL=2;BYDAY=FR", "every 2 weeks on Fri"),
+        ("FREQ=MONTHLY;BYMONTHDAY=22", "every month on the 22nd"),
+        ("FREQ=HOURLY;INTERVAL=3", "every 3 hours"),
+        ("FREQ=YEARLY", "every year"),
+    ],
+)
+def test_describe_rule(rule: str, words: str) -> None:
+    assert describe_rule(rule) == words
+
+
+def test_split_repeats_from_chat() -> None:
+    parsed, rest = split_time("every friday 18:00 water the plants", now=NOW, timezone=BERLIN)
+    assert parsed.rule == "FREQ=WEEKLY;BYDAY=FR"
+    assert rest == "water the plants"
+    assert describe(parsed, now=NOW, timezone=BERLIN).startswith("every Fri, first: Fri 27 Nov 2026, 18:00 CET")

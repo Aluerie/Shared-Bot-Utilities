@@ -23,11 +23,12 @@ from dateutil.relativedelta import relativedelta
 lazy import dateparser
 
 from . import clock, errors
-from .scheduler import UTC, WallTime
+from .scheduler import UTC, WallTime, recurrence
 
 __all__ = (
     "ParsedTime",
     "describe",
+    "describe_rule",
     "parse_time",
     "split_time",
 )
@@ -121,13 +122,16 @@ class ParsedTime:
     Attributes
     ----------
     when
-        What to schedule: an absolute (UTC) or a local wall time.
+        What to schedule: an absolute (UTC) or a local wall time. For repeats, the first occurrence.
     moment
         The moment it stands for now (aware, UTC), for display.
+    rule
+        RRULE of a repeat ("every friday 18:00"), `None` for a one-off time.
     """
 
     when: WallTime
     moment: dt.datetime
+    rule: str | None = None
 
     @property
     def is_absolute(self) -> bool:
@@ -216,6 +220,176 @@ def _parse_iso(text: str) -> dt.datetime | dt.date | None:
         return None
 
 
+# --- REPEATS ----------------------------------------------------------------------------------------------------------
+
+_DAY_CODES: Final = {
+    "monday": "MO", "mon": "MO",
+    "tuesday": "TU", "tue": "TU", "tues": "TU",
+    "wednesday": "WE", "wed": "WE",
+    "thursday": "TH", "thu": "TH", "thur": "TH", "thurs": "TH",
+    "friday": "FR", "fri": "FR",
+    "saturday": "SA", "sat": "SA",
+    "sunday": "SU", "sun": "SU",
+}  # fmt: skip
+_DAY_NAMES: Final = {"MO": "Mon", "TU": "Tue", "WE": "Wed", "TH": "Thu", "FR": "Fri", "SA": "Sat", "SU": "Sun"}
+_FREQUENCIES: Final = {"hour": "HOURLY", "day": "DAILY", "week": "WEEKLY", "month": "MONTHLY", "year": "YEARLY"}
+_ALIASES: Final = {
+    "hourly": "every hour",
+    "daily": "every day",
+    "weekly": "every week",
+    "monthly": "every month",
+    "yearly": "every year",
+    "annually": "every year",
+}
+_DAY_WORD: Final = "|".join(sorted((*_DAY_CODES, *(f"{day}s" for day in _DAY_CODES)), key=len, reverse=True))
+_DAY_LIST: Final = rf"(?:{_DAY_WORD})(?:\s*(?:,|and|&|\s)\s*(?:{_DAY_WORD}))*"
+_REPEAT: Final = re.compile(
+    rf"""
+    every\s+
+    (?:
+        (?P<weekdays>weekdays?|workdays?)
+      | (?P<weekend>weekends?)
+      | (?P<days>{_DAY_LIST})
+      | (?:(?P<interval>\d{{1,3}})\s+)?(?P<unit>hour|day|week|month|year)s?
+        (?:\s+on\s+(?:(?P<on_days>{_DAY_LIST})|the\s+(?P<monthday>\d{{1,2}})(?:st|nd|rd|th)?))?
+    )
+    (?:\s+(?:at\s+)?(?P<time>.+))?
+    """,
+    re.VERBOSE,
+)
+_CLOCK: Final = re.compile(r"(?P<hour>\d{1,2})(?::(?P<minute>\d{2}))?\s*(?P<ampm>am|pm|a\.m\.|p\.m\.)?")
+LAST_HOUR: Final = 23
+LAST_MINUTE: Final = 59
+HALF_DAY_HOURS: Final = 12
+LAST_MONTH_DAY: Final = 31
+MIN_REPEAT_INTERVAL: Final = dt.timedelta(hours=1)
+"""Repeats can't be more often than this: minute-long ones would be spam."""
+
+
+def _day_codes(text: str) -> list[str]:
+    words = re.findall(_DAY_WORD, text)
+    codes = [_DAY_CODES[word.removesuffix("s") if word.removesuffix("s") in _DAY_CODES else word] for word in words]
+    return sorted(set(codes), key=list(_DAY_NAMES).index)
+
+
+def _clock_time(text: str, default: dt.time) -> dt.time:
+    """Read a time of day: "9am", "18:00", "8:30 pm", "noon", "midnight"; empty is `default`."""
+    text = text.strip()
+    if not text:
+        return default
+    if text in {"noon", "midday"}:
+        return dt.time(12)
+    if text == "midnight":
+        return dt.time(0)
+    match = _CLOCK.fullmatch(text)
+    if match is None:
+        msg = f'I couldn\'t understand the time of day {text!r}, try e.g. "9am" or "18:00".'
+        raise errors.BadUserInputError(msg)
+    hour, minute = int(match["hour"]), int(match["minute"] or 0)
+    if ampm := match["ampm"]:
+        if not 1 <= hour <= HALF_DAY_HOURS:
+            msg = f"{text!r} isn't a time of day."
+            raise errors.BadUserInputError(msg)
+        hour = hour % HALF_DAY_HOURS + (HALF_DAY_HOURS if ampm.startswith("p") else 0)
+    if hour > LAST_HOUR or minute > LAST_MINUTE:
+        msg = f"{text!r} isn't a time of day."
+        raise errors.BadUserInputError(msg)
+    return dt.time(hour, minute)
+
+
+def _parse_repeat(text: str, *, now: dt.datetime, timezone: str) -> ParsedTime | None:
+    """Understand "every friday 18:00"-like input; `None` if it isn't a repeat."""
+    for alias, meaning in _ALIASES.items():
+        if text == alias or text.startswith(f"{alias} "):
+            text = meaning + text.removeprefix(alias)
+            break
+    if not text.startswith("every "):
+        return None
+    if (found := _extract_timezone(text)) is not None:
+        timezone, text = found
+    match = _REPEAT.fullmatch(text)
+    if match is None:
+        if re.match(r"every\s+(?:\d+\s+)?(?:minute|min|second|sec)", text):
+            msg = "Reminders can repeat at most every hour."
+            raise errors.BadUserInputError(msg)
+        msg = (
+            f"I couldn't understand the repeat {text!r}. "
+            'Try e.g. "every day 9am", "every friday 18:00", "every mon and thu 20:00", "every 2 weeks on friday".'
+        )
+        raise errors.BadUserInputError(msg)
+
+    local_now = now.astimezone(zoneinfo.ZoneInfo(timezone)).replace(tzinfo=None, microsecond=0)
+    parts: list[str]
+    if match["weekdays"]:
+        parts = ["FREQ=WEEKLY", "BYDAY=MO,TU,WE,TH,FR"]
+    elif match["weekend"]:
+        parts = ["FREQ=WEEKLY", "BYDAY=SA,SU"]
+    elif match["days"]:
+        parts = ["FREQ=WEEKLY", f"BYDAY={','.join(_day_codes(match['days']))}"]
+    else:
+        parts = [f"FREQ={_FREQUENCIES[match['unit']]}"]
+        if (interval := int(match["interval"] or 1)) > 1:
+            parts.append(f"INTERVAL={interval}")
+        if match["on_days"]:
+            parts.append(f"BYDAY={','.join(_day_codes(match['on_days']))}")
+        if match["monthday"]:
+            if not 1 <= int(match["monthday"]) <= LAST_MONTH_DAY:
+                msg = f"There's no {match['monthday']}th day of a month."
+                raise errors.BadUserInputError(msg)
+            parts.append(f"BYMONTHDAY={int(match['monthday'])}")
+    rule = ";".join(parts)
+
+    if match["unit"] == "hour":
+        # hours are real hours, the same across DST changes: the repeat is absolute, from now
+        if match["time"]:
+            msg = 'Hourly repeats start now, they can\'t have a time of day: try just "every 2 hours".'
+            raise errors.BadUserInputError(msg)
+        first = _absolute(now + dt.timedelta(hours=int(match["interval"] or 1)))
+        return ParsedTime(first.when, first.moment, rule=rule)
+
+    time_of_day = _clock_time(match["time"] or "", default=local_now.time())
+    start = dt.datetime.combine(local_now.date(), time_of_day)
+    first_local = recurrence.next_occurrence(rule, current=start, after=local_now)
+    if first_local is None:  # can't happen for rules without UNTIL, but a clear error beats an assert
+        msg = f"The repeat {text!r} never happens."
+        raise errors.BadUserInputError(msg)
+    first = _wall(first_local, timezone)
+    return ParsedTime(first.when, first.moment, rule=rule)
+
+
+def describe_rule(rule: str) -> str:
+    """Describe a repeat rule in words: "every day", "every Mon and Thu", "every 2 weeks on Fri", "every hour".
+
+    Rules that this module doesn't make are described as they are.
+    """
+    fields = dict(part.split("=", 1) for part in rule.split(";") if "=" in part)
+    unit = {value: key for key, value in _FREQUENCIES.items()}.get(fields.get("FREQ", ""))
+    if unit is None:
+        return rule
+    interval = int(fields.get("INTERVAL", "1"))
+    text = f"every {interval} {unit}s" if interval > 1 else f"every {unit}"
+    if (days := fields.get("BYDAY")) is not None:
+        codes = days.split(",")
+        names = (
+            "weekday"
+            if codes == ["MO", "TU", "WE", "TH", "FR"]
+            else "weekend day"
+            if codes == ["SA", "SU"]
+            else " and ".join(_DAY_NAMES.get(code, code) for code in codes)
+        )
+        text = f"every {names}" if unit == "week" and interval == 1 else f"{text} on {names}"
+    if (monthday := fields.get("BYMONTHDAY")) is not None:
+        text += f" on the {monthday}{_ordinal_suffix(int(monthday))}"
+    return text
+
+
+def _ordinal_suffix(number: int) -> str:
+    teens = range(11, 14)  # 11th, 12th, 13th
+    if number % 100 in teens:
+        return "th"
+    return {1: "st", 2: "nd", 3: "rd"}.get(number % 10, "th")
+
+
 def _parse(text: str, *, now: dt.datetime, timezone: str) -> ParsedTime:
     raw = " ".join(text.split())
     lowered = raw.lower()
@@ -234,6 +408,9 @@ def _parse(text: str, *, now: dt.datetime, timezone: str) -> ParsedTime:
         if iso.tzinfo is not None:  # an explicit offset wins over the user's timezone
             return _absolute(iso)
         return _wall(iso, timezone)
+
+    if (repeat := _parse_repeat(lowered, now=now, timezone=timezone)) is not None:
+        return repeat
 
     if (found := _extract_timezone(lowered)) is not None:
         zone, rest = found
@@ -293,6 +470,9 @@ def parse_time(text: str, *, now: dt.datetime, timezone: str = UTC) -> ParsedTim
         ``dateparser`` understands ("tomorrow 3pm", "friday", "3 december 10:00"). Dates are day-first.
         A clock time can name its timezone, which then wins over `timezone`: "18:00 MSK", "3pm EST",
         "friday 10:00 Europe/Berlin", "9am UTC+3".
+        Repeats give a `ParsedTime` with a `rule` and their first occurrence: "every day 9am", "every friday 18:00",
+        "every mon and thu 20:00", "every weekday 8:30", "every 2 weeks on friday", "every month on the 15th 10:00",
+        "every 3 hours" (real hours, from now), "daily", "weekly".
     now
         The current moment (aware).
     timezone
@@ -384,4 +564,7 @@ def describe(parsed: ParsedTime, *, now: dt.datetime, timezone: str = UTC) -> st
     local = parsed.moment.astimezone(zoneinfo.ZoneInfo(shown))
     relative = clock.human_datetime_diff(parsed.moment, relative_to=now, max_units=2)
     when = "in " + relative if parsed.moment > now else relative + " ago"
-    return f"{local:%a %d %b %Y, %H:%M %Z} ({when})"
+    text = f"{local:%a %d %b %Y, %H:%M %Z} ({when})"
+    if parsed.rule is not None:
+        return f"{describe_rule(parsed.rule)}, first: {text}"
+    return text

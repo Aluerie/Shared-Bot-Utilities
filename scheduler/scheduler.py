@@ -30,7 +30,7 @@ import asyncpg
 from loguru import logger
 
 from . import recurrence
-from .jobs import HANDLER_ATTRIBUTE, STOP, HandlerSpec, Job, JobData, Outcome, Reschedule
+from .jobs import HANDLER_ATTRIBUTE, STOP, HandlerSpec, Job, JobData, JobRun, Outcome, Reschedule
 from .walltime import UTC, WallTime, When, to_wall_time
 
 __all__ = (
@@ -52,6 +52,10 @@ MAX_LOOP_RETRY = 300.0
 UNKNOWN_KINDS_CHECK_INTERVAL = dt.timedelta(hours=1)
 UNKNOWN_KINDS_GRACE = dt.timedelta(hours=1)
 """Jobs this overdue whose kind has no handler get a warning in the logs (a typo or a cog that isn't loaded)."""
+HISTORY_DAYS = 90
+"""Rows of `scheduled_job_runs` are kept this many days (pruned with the hourly unknown-kinds check)."""
+NOTIFY_CHANNEL = "scheduled_jobs"
+"""PostgreSQL channel that `schema.sql`'s trigger notifies, with the table's schema as the payload."""
 
 type OnConflict = Literal["error", "replace", "keep"]
 """What `Scheduler.schedule` does when a job with the same key exists: raise, replace it or keep it."""
@@ -106,6 +110,9 @@ class Scheduler:
     on_error
         Coroutine function called with handler errors (and the job) and scheduler errors (job `None`).
         Errors are logged either way.
+    max_concurrency
+        How many handlers may run at the same time. After downtime many jobs are due at once;
+        the rest wait for a free slot instead of all hitting Discord's (or Twitch's) rate limits together.
     """
 
     def __init__(
@@ -115,12 +122,18 @@ class Scheduler:
         poll_interval: dt.timedelta = dt.timedelta(seconds=30),
         clock: Clock = _utcnow,
         on_error: ErrorCallback | None = None,
+        max_concurrency: int = 5,
     ) -> None:
         self.pool: asyncpg.Pool[Any] = pool
         self.poll_interval: dt.timedelta = poll_interval
         self.lookahead: dt.timedelta = poll_interval * 2
         self.clock: Clock = clock
         self._on_error: ErrorCallback | None = on_error
+        self._slots: asyncio.Semaphore = asyncio.Semaphore(max_concurrency)
+        self._schema: str | None = None
+        """The schema of the table, which `NOTIFY`s carry; known after `start`."""
+        self._listener: Any = None
+        """The pool connection held for `LISTEN`, while it's alive."""
 
         self._handlers: dict[str, HandlerSpec] = {}
         self._pending: dict[int, tuple[Job, asyncio.Task[None]]] = {}
@@ -159,6 +172,7 @@ class Scheduler:
             raise RuntimeError(msg)
         if install:
             await self.install()
+        self._schema = await self.pool.fetchval("SELECT current_schema()")
         released = await self.pool.execute("UPDATE scheduled_jobs SET claimed_at = NULL WHERE claimed_at IS NOT NULL")
         if released != "UPDATE 0":
             logger.info("Scheduler: released unfinished jobs of the previous run ({}).", released)
@@ -181,6 +195,7 @@ class Scheduler:
             self._loop_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._loop_task
+        await self._drop_listener()
 
         pending = list(self._pending.items())
         self._pending.clear()
@@ -467,6 +482,121 @@ class Scheduler:
         self._wake.set()
         return Job.from_row(row)
 
+    async def pause(self, job_id: int, *, kind: str | None = None, user_id: int | None = None) -> Job[Any] | None:
+        """Pause a job: it doesn't fire until `resume`.
+
+        Returns
+        -------
+        Job | None
+            The paused job, or `None` if there is no such job or it's running right now.
+        """
+        if job_id in self._running:
+            return None
+        row = await self.pool.fetchrow(
+            f"""
+                UPDATE scheduled_jobs SET paused_at = $4, claimed_at = NULL, retry_at = NULL
+                WHERE id = $1 AND ($2::TEXT IS NULL OR kind = $2) AND ($3::BIGINT IS NULL OR user_id = $3)
+                RETURNING {COLUMNS};
+            """,  # ruff: ignore[hardcoded-sql-expression]: a constant
+            job_id,
+            kind,
+            user_id,
+            self.clock(),
+        )
+        if row is None:
+            return None
+        self._forget(job_id)
+        return Job.from_row(row)
+
+    async def resume(self, job_id: int, *, kind: str | None = None, user_id: int | None = None) -> Job[Any] | None:
+        """Resume a paused job.
+
+        A repeating job whose occurrence passed while it was paused moves on to its next one after now
+        (the missed ones are skipped, like after downtime). A one-off job whose time passed fires right away.
+
+        Returns
+        -------
+        Job | None
+            The resumed job, or `None` if there is no such job.
+        """
+        async with self.pool.acquire() as connection, connection.transaction():
+            row = await connection.fetchrow(
+                f"""
+                    SELECT {COLUMNS} FROM scheduled_jobs
+                    WHERE id = $1 AND ($2::TEXT IS NULL OR kind = $2) AND ($3::BIGINT IS NULL OR user_id = $3)
+                    FOR UPDATE;
+                """,  # ruff: ignore[hardcoded-sql-expression]: a constant
+                job_id,
+                kind,
+                user_id,
+            )
+            if row is None:
+                return None
+            job = Job.from_row(row)
+            when = job.when
+            now = self.clock()
+            if job.rule is not None and job.due_at <= now:
+                local_now = WallTime.from_aware(now, when.timezone).local
+                local = recurrence.next_occurrence(job.rule, current=when.local, after=local_now)
+                if local is not None:
+                    when = WallTime(local, when.timezone)
+            row = await connection.fetchrow(
+                f"""
+                    UPDATE scheduled_jobs SET paused_at = NULL, local_due = $2, timezone = $3
+                    WHERE id = $1
+                    RETURNING {COLUMNS};
+                """,  # ruff: ignore[hardcoded-sql-expression]: a constant
+                job_id,
+                when.local,
+                when.timezone,
+            )
+            assert row is not None, "the row is locked by this transaction"
+        job = Job.from_row(row)
+        self._wake_if_soon(job.fire_at)
+        return job
+
+    async def history(
+        self,
+        kind: str | None = None,
+        *,
+        user_id: int | None = None,
+        since: dt.datetime | None = None,
+        outcomes: Sequence[str] | None = None,
+        limit: int = 100,
+    ) -> list[JobRun]:
+        """Fetch past runs of jobs, the newest first (kept for `HISTORY_DAYS` days).
+
+        Parameters
+        ----------
+        kind
+            Only runs of jobs of this kind.
+        user_id
+            Only runs of this user's jobs.
+        since
+            Only runs that finished after this moment.
+        outcomes
+            Only runs with these outcomes, e.g. ``["failed", "gave_up"]``.
+        limit
+            At most this many runs.
+        """
+        rows = await self.pool.fetch(
+            """
+                SELECT * FROM scheduled_job_runs
+                WHERE ($1::TEXT IS NULL OR kind = $1)
+                    AND ($2::BIGINT IS NULL OR user_id = $2)
+                    AND ($3::TIMESTAMPTZ IS NULL OR finished_at > $3)
+                    AND ($4::TEXT[] IS NULL OR outcome = ANY($4::TEXT[]))
+                ORDER BY finished_at DESC, id DESC
+                LIMIT $5;
+            """,
+            kind,
+            user_id,
+            since,
+            list(outcomes) if outcomes is not None else None,
+            limit,
+        )
+        return [JobRun.from_row(row) for row in rows]
+
     # --- QUERYING -----------------------------------------------------------------------------------------------------
 
     async def get(self, job_id: int, *, kind: str | None = None, user_id: int | None = None) -> Job[Any] | None:
@@ -594,6 +724,8 @@ class Scheduler:
             self._wake.clear()
             try:
                 await self._poll()
+                # after the poll: the listener only speeds things up, so (re)connecting it mustn't delay jobs
+                await self._ensure_listener()
             except (OSError, TimeoutError, asyncpg.PostgresConnectionError, asyncpg.InterfaceError) as exc:
                 logger.warning("Scheduler: the database is unavailable ({!r}), retrying in {:.0f}s.", exc, delay)
                 await asyncio.sleep(delay)
@@ -617,7 +749,7 @@ class Scheduler:
                 f"""
                     WITH due AS (
                         SELECT id FROM scheduled_jobs
-                        WHERE claimed_at IS NULL AND kind = ANY($3::TEXT[]) AND {FIRE_AT} <= $2
+                        WHERE claimed_at IS NULL AND paused_at IS NULL AND kind = ANY($3::TEXT[]) AND {FIRE_AT} <= $2
                         FOR UPDATE SKIP LOCKED
                     )
                     UPDATE scheduled_jobs AS jobs SET claimed_at = $1
@@ -637,10 +769,13 @@ class Scheduler:
         if checked_at is not None and now - checked_at < UNKNOWN_KINDS_CHECK_INTERVAL:
             return
         self._unknown_kinds_checked_at = now
+        await self.pool.execute(
+            "DELETE FROM scheduled_job_runs WHERE finished_at < $1", now - dt.timedelta(days=HISTORY_DAYS)
+        )
         rows = await self.pool.fetch(
             f"""
                 SELECT kind, COUNT(*) AS total FROM scheduled_jobs
-                WHERE claimed_at IS NULL AND NOT (kind = ANY($1::TEXT[])) AND {FIRE_AT} < $2
+                WHERE claimed_at IS NULL AND paused_at IS NULL AND NOT (kind = ANY($1::TEXT[])) AND {FIRE_AT} < $2
                 GROUP BY kind;
             """,  # ruff: ignore[hardcoded-sql-expression]: a constant
             list(self._handlers),
@@ -688,20 +823,22 @@ class Scheduler:
             await self._release([job.id])
             return
 
-        now = self.clock()
-        job = dataclasses.replace(job, fired_at=now)
-        if spec.max_lateness is not None and job.lateness > spec.max_lateness:
-            logger.info("Scheduler: skipping {} job {}, it's {} late.", job.kind, job.id, job.lateness)
-            await self._finish(job, spec, None, now)
-            return
+        # at most `max_concurrency` handlers at once: after downtime, the rest wait here for a free slot
+        async with self._slots:
+            now = self.clock()
+            job = dataclasses.replace(job, fired_at=now)
+            if spec.max_lateness is not None and job.lateness > spec.max_lateness:
+                logger.info("Scheduler: skipping {} job {}, it's {} late.", job.kind, job.id, job.lateness)
+                await self._finish(job, spec, None, now, record="skipped")
+                return
 
-        logger.debug("Scheduler: firing {} job {} (due {}).", job.kind, job.id, job.due_at)
-        try:
-            outcome = await spec.func(job)
-        except Exception as exc:  # ruff: ignore[blind-except]: handler errors are retried
-            await self._fail(job, spec, exc, now)
-            return
-        await self._finish(job, spec, outcome, now)
+            logger.debug("Scheduler: firing {} job {} (due {}).", job.kind, job.id, job.due_at)
+            try:
+                outcome = await spec.func(job)
+            except Exception as exc:  # ruff: ignore[blind-except]: handler errors are retried
+                await self._fail(job, spec, exc, now)
+                return
+            await self._finish(job, spec, outcome, now)
 
     async def _finish(
         self,
@@ -711,6 +848,7 @@ class Scheduler:
         now: dt.datetime,
         *,
         last_error: str | None = None,
+        record: str | None = None,
     ) -> None:
         if outcome is STOP:
             next_when = None
@@ -721,6 +859,9 @@ class Scheduler:
             next_when = job.when
         else:
             next_when = self._next_occurrence(job, spec, now)
+
+        default = "stopped" if outcome is STOP else "rescheduled" if isinstance(outcome, Reschedule) else "done"
+        await self._record(job, record or default, error=last_error)
 
         if next_when is None:
             await self.pool.execute(
@@ -762,9 +903,10 @@ class Scheduler:
         if attempts >= spec.max_attempts:
             logger.warning("Scheduler: giving up on {} job {} after {} attempts.", job.kind, job.id, attempts)
             # the occurrence is over: one-off jobs are deleted, repeating ones move on (keeping the error to look at)
-            await self._finish(job, spec, None, now, last_error=error)
+            await self._finish(job, spec, None, now, last_error=error, record="gave_up")
             return
 
+        await self._record(job, "failed", error=error)
         retry_at = now + spec.retry_delay * 2 ** (attempts - 1)
         await self.pool.execute(
             """
@@ -780,6 +922,65 @@ class Scheduler:
         self._wake_if_soon(retry_at)
 
     # --- HELPERS ------------------------------------------------------------------------------------------------------
+
+    async def _record(self, job: Job, outcome: str, *, error: str | None = None) -> None:
+        """Add a row to the run history. A failure to write it is reported, not raised: history is a nicety."""
+        try:
+            await self.pool.execute(
+                """
+                    INSERT INTO scheduled_job_runs
+                        (job_id, kind, key, user_id, guild_id, due_at, fired_at, finished_at, attempt, outcome, error)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
+                """,
+                job.id,
+                job.kind,
+                job.key,
+                job.user_id,
+                job.guild_id,
+                job.due_at,
+                job.fired_at or self.clock(),
+                self.clock(),
+                job.attempts + 1,
+                outcome,
+                error,
+            )
+        except Exception as exc:  # ruff: ignore[blind-except]
+            await self._report(exc, job)
+
+    async def _ensure_listener(self) -> None:
+        """Hold a connection that `LISTEN`s for changes of the table made elsewhere (e.g. "run now" from LalaBot).
+
+        Without it everything still works, just on the next poll instead of right away, so failures are only logged.
+        """
+        if self._listener is not None and not self._listener.is_closed():
+            return
+        await self._drop_listener()
+        try:
+            connection = await self.pool.acquire()
+        except Exception:  # ruff: ignore[blind-except]
+            logger.opt(exception=True).warning("Scheduler: no connection to LISTEN on, polling only.")
+            return
+        try:
+            await connection.add_listener(NOTIFY_CHANNEL, self._on_notify)
+        except Exception:  # ruff: ignore[blind-except]
+            logger.opt(exception=True).warning("Scheduler: could not LISTEN, polling only.")
+            await self.pool.release(connection)
+            return
+        self._listener = connection
+
+    async def _drop_listener(self) -> None:
+        if (connection := self._listener) is None:
+            return
+        self._listener = None
+        with contextlib.suppress(Exception):
+            await connection.remove_listener(NOTIFY_CHANNEL, self._on_notify)
+        with contextlib.suppress(Exception):
+            await self.pool.release(connection)
+
+    def _on_notify(self, _connection: Any, _pid: int, _channel: str, payload: object) -> None:
+        # every bot's table notifies the same channel: only wake up for this one's
+        if payload == self._schema:
+            self._wake.set()
 
     def _forget(self, job_id: int) -> None:
         """Drop a job's waiting task after its row was changed or deleted (and its claim with it)."""

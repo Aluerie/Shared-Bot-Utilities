@@ -347,6 +347,34 @@ Note the order in `_run`: `self._wake.clear()` happens **before** `_poll()`, not
 `_poll` is awaiting the database and the event were cleared afterwards, that wake-up would be lost until the next timeout.
 Clearing first means any `set()` during the poll survives and causes one more immediate poll.
 
+### 📣 Waking up for changes made elsewhere: `LISTEN/NOTIFY`
+
+`_wake_if_soon` only covers changes this process makes. When LalaBot's ▶️ Retry now button (or you, in `psql`) changes a
+job, the bot would only notice on its next poll. PostgreSQL has a built-in message bus for this: a connection can
+`LISTEN` on a named channel, and `NOTIFY` (or `pg_notify(...)`) on that channel reaches every listener when the
+transaction commits. It's part of PostgreSQL itself, not a service to run.
+
+* `schema.sql` adds a trigger on `scheduled_jobs` that calls `pg_notify('scheduled_jobs', <schema>)` for every row that is
+  inserted or updated **and left unclaimed** (`WHEN (NEW.claimed_at IS NULL)`). Claims set `claimed_at`, so the
+  scheduler's own claiming doesn't wake itself in a loop. Every bot notifies the same channel with its schema as the
+  payload, and `_on_notify` ignores the other bots'.
+* `_ensure_listener` holds one pool connection with `add_listener` on it. It runs *after* each poll, so a slow or failing
+  connection never delays jobs: without the listener everything still works, just on the next 30-second poll.
+  A dropped connection (a database restart) is noticed (`is_closed()`) and replaced on the next round.
+
+### 🚦 At most 5 handlers at a time
+
+After downtime many jobs are due at once. Each still gets its task, but `_execute` runs the handler inside
+`async with self._slots:`, an `asyncio.Semaphore(max_concurrency)` (5 by default). The others wait for a free slot,
+so a backlog drains at a steady pace instead of every handler hitting Discord's rate limits at the same second.
+`fired_at` (and so `lateness`) is taken once the slot is acquired.
+
+### ⏸️ Pausing
+
+`pause(job_id)` sets `paused_at`; claiming skips paused jobs. `resume(job_id)` clears it, and if the job's occurrence passed
+in the meantime, a repeating job moves on to its next occurrence after now (the missed ones are skipped, as after
+downtime), while a one-off job fires right away.
+
 ## 🎬 What happens after a handler runs
 
 `_execute` is the heart of firing:
@@ -385,6 +413,15 @@ Details worth knowing:
 * **Every finishing write is guarded:** `WHERE id = $1 AND claimed_at = $2`. If the job was changed or deleted while the
   handler ran, the claim no longer matches and the write does nothing. See
   **compare-and-set**.
+
+## 📜 History (`scheduled_job_runs`)
+
+Every handler run, and every occurrence skipped for being too late, adds a row to `scheduled_job_runs`: the job's ID,
+kind, key, user and guild, when it was due, when it fired and finished, which attempt it was, the outcome (`done`,
+`rescheduled`, `stopped`, `skipped`, `failed` (retried later) or `gave_up`) and the traceback for failures. The job's own
+row is usually deleted after it runs, so this is the only way to answer "did my reminder go out?" or "what failed
+this week?". Rows older than 90 days are deleted with the hourly unknown-kinds check. `Scheduler.history(...)` reads it.
+Writing a history row can't fail a job: errors are reported and the job carries on.
 
 ## 🧠 Async concepts used here
 
@@ -524,7 +561,12 @@ can never get into the table, which matters because a single such row would make
    clock time). The unit regex ends with `(?![a-z])` rather than `\b`, because `2h30m` has no word boundary between
    `h` and `3`.
 5. **Keywords** `eod`, `eow` (Friday), `eom`, `eoy` (all at 23:59), `tonight` (20:00).
-6. **Everything else** goes to `dateparser` ("tomorrow 3pm", "friday", "3 december 10:00"), with two fixes found by
+6. **Repeats**: `every day 9am`, `every weekday 8:30`, `every friday 18:00`, `every mon and thu 20:00`,
+   `every 2 weeks on friday`, `every month on the 15th 10:00`, `daily`, `weekly`, `every 3 hours`. They become a
+   `ParsedTime` with an RRULE in `rule` and the first occurrence in `when`, found by evaluating the rule after now on
+   the user's (or the typed zone's) clocks. Hourly repeats are absolute (real hours, from now). Nothing more often than
+   hourly is accepted. `describe_rule(rule)` turns a rule back into words ("every Mon and Thu").
+7. **Everything else** goes to `dateparser` ("tomorrow 3pm", "friday", "3 december 10:00"), with two fixes found by
    testing it: `next friday 3pm` returns nothing (so `next ` is dropped before weekdays), and a date without a time
    comes back at midnight (so the current time of day is kept instead).
 
@@ -601,6 +643,10 @@ SELECT id, kind, attempts, last_error FROM alubot.scheduled_jobs WHERE last_erro
 
 -- claimed right now (should be empty or only jobs due within a minute)
 SELECT id, kind, claimed_at FROM alubot.scheduled_jobs WHERE claimed_at IS NOT NULL;
+
+-- what ran lately, and how it went
+SELECT job_id, kind, outcome, attempt, fired_at - due_at AS late, finished_at
+FROM alubot.scheduled_job_runs ORDER BY finished_at DESC LIMIT 20;
 ```
 
 On the VPS: `ssh vps`, then `sudo -u postgres psql -d alubot`.
@@ -640,5 +686,5 @@ On the VPS: `ssh vps`, then `sudo -u postgres psql -d alubot`.
 * **Monthly RRULEs on the 29th–31st** skip months that are too short (RFC 5545 behaviour).
 * **Two timezone databases** (Python's `tzdata`, PostgreSQL's) can briefly disagree after a rule change; jobs fire by
   PostgreSQL's.
-* **Precision** is about a second for jobs claimed in time; a job scheduled from outside the bot (psql, another process)
-  is picked up by the next poll, up to 30 seconds later.
+* **Precision** is about a second, including for jobs changed from outside the bot, thanks to `LISTEN/NOTIFY`
+  (up to 30 seconds if the listening connection is down).

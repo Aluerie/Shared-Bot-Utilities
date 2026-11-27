@@ -59,7 +59,7 @@ async def pool() -> AsyncIterator[asyncpg.Pool[Any]]:
         )
 
     test_pool = await asyncpg.create_pool(
-        DSN, min_size=1, max_size=4, init=init, server_settings={"search_path": schema}
+        DSN, min_size=4, max_size=4, init=init, server_settings={"search_path": schema}
     )
     try:
         yield test_pool
@@ -446,3 +446,103 @@ async def test_running_job_cannot_be_changed(make_scheduler: Any) -> None:
     assert await scheduler.update(job.id, data={"x": 1}) is None
     assert await scheduler.run_now(job.id) is None
     release.set()
+
+
+# --- CONCURRENCY, HISTORY, NOTIFY, PAUSE ------------------------------------------------------------------------------
+
+
+async def test_concurrency_is_capped(make_scheduler: Any) -> None:
+    running = 0
+    most = 0
+    done = asyncio.Event()
+    finished = 0
+
+    async def slow(job: Job) -> None:
+        nonlocal running, most, finished
+        running += 1
+        most = max(most, running)
+        await asyncio.sleep(0.1)
+        running -= 1
+        finished += 1
+        if finished == 6:
+            done.set()
+
+    scheduler = await started(make_scheduler, HandlerSpec(kind="slow", func=slow), max_concurrency=2)
+    for _ in range(6):
+        await scheduler.schedule("slow", utcnow())
+    async with asyncio.timeout(5):
+        await done.wait()
+    assert most == 2
+
+
+async def test_history_records_every_outcome(make_scheduler: Any) -> None:
+    outcomes = iter([RuntimeError("boom"), None])
+
+    async def flaky(job: Job) -> None:
+        if (error := next(outcomes)) is not None:
+            raise error
+
+    recorder = Recorder()
+    scheduler = await started(
+        make_scheduler,
+        HandlerSpec(kind="flaky", func=flaky, retry_delay=dt.timedelta(seconds=0.1)),
+        HandlerSpec(kind="late", func=recorder, max_lateness=dt.timedelta(minutes=1)),
+    )
+    flaky_job = await scheduler.schedule("flaky", utcnow(), user_id=7)
+    await scheduler.schedule("late", utcnow() - dt.timedelta(hours=1))
+    await asyncio.sleep(1.0)
+
+    runs = await scheduler.history()
+    by_kind = {(run.kind, run.outcome) for run in runs}
+    assert ("flaky", "failed") in by_kind
+    assert ("flaky", "done") in by_kind
+    assert ("late", "skipped") in by_kind
+    failed = next(run for run in runs if run.outcome == "failed")
+    assert failed.job_id == flaky_job.id
+    assert failed.attempt == 1
+    assert failed.error is not None
+    assert "boom" in failed.error
+    assert [run.outcome for run in await scheduler.history("flaky", user_id=7, outcomes=["done"])] == ["done"]
+
+
+async def test_changes_from_elsewhere_wake_the_scheduler(make_scheduler: Any, pool: Any) -> None:
+    recorder = Recorder()
+    scheduler = await started(
+        make_scheduler, HandlerSpec(kind="ping", func=recorder), poll_interval=dt.timedelta(seconds=30)
+    )
+    job = await scheduler.schedule("ping", utcnow() + dt.timedelta(days=1))
+    await asyncio.sleep(0.3)  # the loop is asleep for 30 s now
+
+    # what LalaBot's "Retry now" does: a plain UPDATE from another connection
+    await pool.execute("UPDATE scheduled_jobs SET retry_at = now() WHERE id = $1", job.id)
+    await recorder.wait(within=3)
+
+
+async def test_paused_jobs_wait_for_resume(make_scheduler: Any) -> None:
+    recorder = Recorder()
+    scheduler = await started(make_scheduler, HandlerSpec(kind="ping", func=recorder))
+    job = await scheduler.schedule("ping", utcnow() + dt.timedelta(seconds=0.3))
+    paused = await scheduler.pause(job.id)
+    assert paused is not None
+    assert paused.is_paused
+    await asyncio.sleep(0.8)
+    assert recorder.jobs == []
+
+    resumed = await scheduler.resume(job.id)
+    assert resumed is not None
+    assert not resumed.is_paused
+    await recorder.wait(within=3)  # a one-off job whose time passed fires right away
+
+
+async def test_resuming_a_repeating_job_skips_what_it_missed(make_scheduler: Any) -> None:
+    scheduler = make_scheduler()
+    await scheduler.install()
+    start = WallTime.from_aware(utcnow() - dt.timedelta(days=3), BERLIN)
+    job = await scheduler.schedule("daily", start, rule="FREQ=DAILY")
+    await scheduler.pause(job.id)
+
+    resumed = await scheduler.resume(job.id)
+    assert resumed is not None
+    assert resumed.due_at > utcnow()
+    assert resumed.due_at - utcnow() <= dt.timedelta(days=1)
+    assert resumed.when.local.time() == start.local.time().replace(microsecond=0)  # RRULEs drop microseconds
