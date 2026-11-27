@@ -42,8 +42,9 @@ def test_sd_notify_without_socket_does_nothing() -> None:
     runtime.sd_notify("READY=1")  # must not raise
 
 
-@unix_only
 def test_sd_notify_sends_state(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    if sys.platform == "win32":  # inside the test, so the type checker knows AF_UNIX exists below
+        pytest.skip("systemd notify sockets are Unix sockets")
     address = str(tmp_path / "notify.sock")
     with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as server:
         server.bind(address)
