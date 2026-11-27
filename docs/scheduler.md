@@ -588,9 +588,14 @@ as `18:00 MSK`.
   `wait_until=self.wait_until_ready`, so no handler runs before the member cache is filled. `add_cog`/`remove_cog` are
   overridden to call `register_handlers`/`unregister_handlers`, so any cog can just decorate methods.
   `close()` closes the scheduler first. `on_scheduler_error` sends errors to the error webhook with the job's details.
-* `ext/public/reminders.py`: `/remind set|list|edit|delete|clear`, the "Remind me about this" message context menu,
-  `/timestamp`. Buttons are `DynamicItem`s whose state lives in the `custom_id` (`reminder:snooze:1h:<user>`), so they
-  keep working after restarts; snoozing reads the text back from the reminder's own embed.
+* `ext/public/reminders.py`: `/remind set|list|edit|delete|clear` (repeats typed in `when`, like
+  "every friday 18:00", or picked from presets; `dm:` to be reminded in DMs), the "Remind me about this" and
+  "Convert times" message context menus, `/timestamp`. Buttons are `DynamicItem`s whose state lives in the
+  `custom_id` (`reminder:snooze:1h:<user>`, `reminder:pause:<job>:<user>`), so they keep working after restarts;
+  snoozing reads the text back from the reminder's own embed. Repeating reminders arrive with ⏭️ Skip next
+  (`update` to the occurrence after the next), ⏸️ Pause (`pause`, with ▶️ Resume) and 🛑 Stop.
+  Late reminders of one person and place are bundled: the first one to fire takes along the others it finds claimed
+  and overdue (under a per-person `asyncio.Lock`) and marks them, so their own handlers just finish.
 * `ext/community/birthdays.py`: one keyed job per person (`birthday:<id>`) at local midnight, `recur=next_birthday`,
   `max_lateness=1 day`, `max_attempts=1`; the role is taken away by a `birthday_role` job.
 * `ext/community/chatter.py`: one keyed job (`periodic-message`), `recur` picks a random 5–10 weeks, and the handler
@@ -605,10 +610,20 @@ as `18:00 MSK`.
 ### 💜 IreBot (TwitchIO)
 
 * `core/bot.py`: the same wiring, with `add_component`/`remove_component`.
-* `ext/public/reminders.py`: `!remind <time> <text>`, `!remind list|delete|clear`. Twitch user IDs are numeric strings,
-  stored as `BIGINT`; the channel (broadcaster) goes into `guild_id`. Reminders reply to the original chat message
-  (`reply_to_message_id`) and fall back to a plain message if it's gone. Clock times are read in UTC, because Twitch
-  doesn't tell the bot a chatter's timezone.
+* `ext/public/reminders.py`: `!remind <time> <text>` (repeats too: `!remind every friday 18:00 ...`),
+  `!remind list|delete|clear`. Twitch user IDs are numeric strings, stored as `BIGINT`; the channel (broadcaster) goes
+  into `guild_id`. Reminders reply to the original chat message (`reply_to_message_id`) and fall back to a plain
+  message if it's gone. Clock times are read in UTC, unless the chatter saved a timezone (`!remind tz MSK`, in
+  `irenesbot.chatter_timezones`) or names one.
+  `!remind live <text>` is a `live_reminder` job due in 30 days; the `stream_online` event `run_now`s the channel's
+  ones. The handler tells the two apart by `retry_at`: set by `run_now` means the stream started, unset means
+  the 30 days ran out, and the job is dropped quietly.
+
+### 🦉 LalaBot
+
+LalaBot doesn't use `shared`, but it reads every bot's `scheduled_jobs` and `scheduled_job_runs` with `psql`: `/jobs`
+shows them, and in prod it posts new problems to the alerts channel every 5 minutes. Its ▶️ Retry now, 🧹 Clear and
+🗑️ Delete buttons write straight to the tables, only for unclaimed jobs, and the `NOTIFY` trigger wakes the bot.
 
 ### ➕ Adding a new kind of job
 
