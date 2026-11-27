@@ -30,6 +30,7 @@ __all__ = (
     "describe",
     "describe_rule",
     "parse_time",
+    "resolve_timezone",
     "split_time",
 )
 
@@ -211,6 +212,22 @@ def _extract_timezone(text: str) -> tuple[str, str] | None:
         return None
     rest = " ".join((text[: match.start()] + " " + text[match.end() :]).split())
     return zone, rest
+
+
+def resolve_timezone(text: str) -> str:
+    """Turn a timezone that a user typed into its IANA key: "MSK", "est", "UTC+3", "Europe/Berlin".
+
+    Raises
+    ------
+    errors.BadUserInputError
+        If the text isn't (only) a timezone.
+    """
+    lowered = " ".join(text.lower().split())
+    found = _extract_timezone(lowered) if lowered else None
+    if found is None or found[1]:
+        msg = f"I don't know the timezone {text!r}. Try e.g. MSK, EST, CET, UTC+3 or Europe/Berlin."
+        raise errors.BadUserInputError(msg)
+    return found[0]
 
 
 def _parse_iso(text: str) -> dt.datetime | dt.date | None:

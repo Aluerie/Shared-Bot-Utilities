@@ -10,7 +10,7 @@ import pytest
 
 from shared import errors
 from shared.scheduler import WallTime
-from shared.timeparse import describe, describe_rule, parse_time, split_time
+from shared.timeparse import describe, describe_rule, parse_time, resolve_timezone, split_time
 
 BERLIN = "Europe/Berlin"
 NOW = dt.datetime(2026, 11, 26, 19, 30, tzinfo=dt.UTC)
@@ -219,3 +219,17 @@ def test_split_repeats_from_chat() -> None:
     assert parsed.rule == "FREQ=WEEKLY;BYDAY=FR"
     assert rest == "water the plants"
     assert describe(parsed, now=NOW, timezone=BERLIN).startswith("every Fri, first: Fri 27 Nov 2026, 18:00 CET")
+
+
+@pytest.mark.parametrize(
+    ("text", "zone"),
+    [("MSK", "Europe/Moscow"), ("est", "America/New_York"), ("UTC+3", "Etc/GMT-3"), ("europe/berlin", "Europe/Berlin")],
+)
+def test_resolve_timezone(text: str, zone: str) -> None:
+    assert resolve_timezone(text) == zone
+
+
+@pytest.mark.parametrize("text", ["", "mars", "msk tomorrow", "utc+5:30"])
+def test_resolve_timezone_refuses_other_things(text: str) -> None:
+    with pytest.raises(errors.BadUserInputError):
+        resolve_timezone(text)
